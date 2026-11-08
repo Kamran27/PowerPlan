@@ -1,11 +1,52 @@
+import { useLiveQuery } from 'dexie-react-hooks'
+import { useState } from 'react'
 import PageHeader from '../components/PageHeader'
-import Placeholder from '../components/Placeholder'
+import TaskInput from '../components/TaskInput'
+import TaskList from '../components/TaskList'
+import { db, type Task } from '../db'
+import { todayISO } from '../lib/date'
+import { compareTasks } from '../lib/tasks'
+
+type Filter = 'offen' | 'heute' | 'erledigt' | 'alle'
+
+const FILTERS: { value: Filter; label: string; empty: string; test: (t: Task, today: string) => boolean }[] = [
+  { value: 'offen', label: 'Offen', empty: 'Keine offenen Aufgaben. Stark! 🎉', test: (t) => !t.done },
+  { value: 'heute', label: 'Heute & überfällig', empty: 'Für heute ist nichts fällig.', test: (t, today) => !t.done && !!t.dueDate && t.dueDate <= today },
+  { value: 'erledigt', label: 'Erledigt', empty: 'Noch nichts erledigt.', test: (t) => t.done },
+  { value: 'alle', label: 'Alle', empty: 'Noch keine Aufgaben. Leg oben los!', test: () => true },
+]
 
 export default function Aufgaben() {
+  const [filter, setFilter] = useState<Filter>('offen')
+  const tasks = useLiveQuery(() => db.tasks.toArray(), [])
+  const today = todayISO()
+
+  const active = FILTERS.find((f) => f.value === filter)!
+  const visible = (tasks ?? []).filter((t) => active.test(t, today)).sort(compareTasks)
+  const openCount = (tasks ?? []).filter((t) => !t.done).length
+
   return (
     <>
-      <PageHeader title="Aufgaben" subtitle="Alles, was erledigt werden will." />
-      <Placeholder milestone="M1" text="Hier legst du bald Aufgaben an, priorisierst und hakst sie ab." />
+      <PageHeader title="Aufgaben" subtitle={tasks ? `${openCount} offen` : ' '} />
+      <TaskInput />
+      <div role="tablist" className="mt-6 mb-2 flex gap-1 overflow-x-auto">
+        {FILTERS.map((f) => (
+          <button
+            key={f.value}
+            role="tab"
+            aria-selected={filter === f.value}
+            onClick={() => setFilter(f.value)}
+            className={`shrink-0 rounded-full px-3 py-1 text-sm font-medium ${
+              filter === f.value
+                ? 'bg-slate-900 text-white dark:bg-slate-100 dark:text-slate-900'
+                : 'text-slate-600 hover:bg-slate-200/70 dark:text-slate-400 dark:hover:bg-slate-800'
+            }`}
+          >
+            {f.label}
+          </button>
+        ))}
+      </div>
+      {tasks && <TaskList tasks={visible} empty={active.empty} />}
     </>
   )
 }

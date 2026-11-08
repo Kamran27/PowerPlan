@@ -2,11 +2,13 @@ import { NavLink, Navigate, Route, Routes } from 'react-router-dom'
 import Heute from './pages/Heute'
 import Aufgaben from './pages/Aufgaben'
 import Statistik from './pages/Statistik'
+import Einstellungen from './pages/Einstellungen'
 
 const navItems = [
   { to: '/heute', label: 'Heute', icon: '☀️' },
   { to: '/aufgaben', label: 'Aufgaben', icon: '✅' },
   { to: '/statistik', label: 'Statistik', icon: '📈' },
+  { to: '/einstellungen', label: 'Einstellungen', icon: '⚙️' },
 ]
 
 function navClass({ isActive }: { isActive: boolean }) {
@@ -45,6 +47,7 @@ export default function App() {
           <Route path="/heute" element={<Heute />} />
           <Route path="/aufgaben" element={<Aufgaben />} />
           <Route path="/statistik" element={<Statistik />} />
+          <Route path="/einstellungen" element={<Einstellungen />} />
           <Route path="*" element={<Navigate to="/heute" replace />} />
         </Routes>
       </main>
