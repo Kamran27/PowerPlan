@@ -7,7 +7,7 @@ import TaskList from '../components/TaskList'
 import { db, type Task } from '../db'
 import { todayISO } from '../lib/date'
 import { compareTasks } from '../lib/tasks'
-import { useDayBlocks } from '../lib/useDayBlocks'
+import { useDayBlocks, useScheduledTimes } from '../lib/useDayBlocks'
 
 function greeting(hour: number) {
   if (hour < 11) return 'Guten Morgen'
@@ -27,7 +27,8 @@ export default function Heute() {
   const dateLabel = now.toLocaleDateString('de-DE', { weekday: 'long', day: 'numeric', month: 'long' })
 
   const allTasks = useLiveQuery(() => db.tasks.toArray(), [])
-  const { blocks, scheduled } = useDayBlocks(today)
+  const blocks = useDayBlocks(today)
+  const scheduled = useScheduledTimes(today)
   const tasksById = useMemo(() => new Map((allTasks ?? []).map((t) => [t.id, t])), [allTasks])
 
   const list = (allTasks ?? []).filter((t) => isRelevantToday(t, today)).sort(compareTasks)

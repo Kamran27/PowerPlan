@@ -6,7 +6,7 @@ import TaskList from '../components/TaskList'
 import { db, type Task } from '../db'
 import { todayISO } from '../lib/date'
 import { compareTasks } from '../lib/tasks'
-import { useDayBlocks } from '../lib/useDayBlocks'
+import { useScheduledTimes } from '../lib/useDayBlocks'
 
 type Filter = 'offen' | 'heute' | 'erledigt' | 'alle'
 
@@ -21,7 +21,7 @@ export default function Aufgaben() {
   const [filter, setFilter] = useState<Filter>('offen')
   const tasks = useLiveQuery(() => db.tasks.toArray(), [])
   const today = todayISO()
-  const { scheduled } = useDayBlocks(today)
+  const scheduled = useScheduledTimes(today)
 
   const active = FILTERS.find((f) => f.value === filter)!
   const visible = (tasks ?? []).filter((t) => active.test(t, today)).sort(compareTasks)

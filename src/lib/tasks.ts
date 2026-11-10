@@ -1,4 +1,6 @@
-import { db, type Task } from '../db'
+import { db, type Task, type TimeBlock } from '../db'
+import { todayISO } from './date'
+import { DEFAULT_DURATION, fromMinutes, MAX_END, toMinutes } from './time'
 
 export type Priority = Task['priority']
 
@@ -12,15 +14,33 @@ export function priorityInfo(p: Priority) {
   return PRIORITIES.find((x) => x.value === p)!
 }
 
-export async function addTask(input: { title: string; priority: Priority; dueDate?: string }) {
+/**
+ * Legt eine Aufgabe an. Mit Uhrzeit (`time`, "HH:MM") wird sie zusätzlich als
+ * einstündiger Block in den Tagesplan des Fälligkeitstags eingetragen (ohne Datum: heute).
+ */
+export async function addTask(input: { title: string; priority: Priority; dueDate?: string; time?: string }) {
   const title = input.title.trim()
   if (!title) return
-  await db.tasks.add({
-    title,
-    priority: input.priority,
-    dueDate: input.dueDate || undefined,
-    done: false,
-    createdAt: new Date().toISOString(),
+  const dueDate = input.dueDate || (input.time ? todayISO() : undefined)
+
+  await db.transaction('rw', db.tasks, db.timeBlocks, async () => {
+    const taskId = await db.tasks.add({
+      title,
+      priority: input.priority,
+      dueDate,
+      done: false,
+      createdAt: new Date().toISOString(),
+    } as Task)
+    if (input.time && dueDate) {
+      const start = toMinutes(input.time)
+      await db.timeBlocks.add({
+        date: dueDate,
+        start: fromMinutes(start),
+        end: fromMinutes(Math.min(start + DEFAULT_DURATION, MAX_END)),
+        title,
+        taskId,
+      } as TimeBlock)
+    }
   })
 }
 

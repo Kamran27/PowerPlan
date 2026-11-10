@@ -9,12 +9,16 @@ export default function TaskInput({ defaultDueDate }: { defaultDueDate?: string 
   const [title, setTitle] = useState('')
   const [priority, setPriority] = useState<Priority>(2)
   const [dueDate, setDueDate] = useState(defaultDueDate ?? '')
+  const [time, setTime] = useState('')
 
   async function submit(e: FormEvent) {
     e.preventDefault()
     if (!title.trim()) return
-    setTitle('') // sofort leeren, damit schnelles Weitertippen nicht verloren geht
-    await addTask({ title, priority, dueDate })
+    // Sofort leeren, damit schnelles Weitertippen nicht verloren geht.
+    // Die Uhrzeit gilt nur für diese eine Aufgabe; Priorität und Datum bleiben für die nächste stehen.
+    setTitle('')
+    setTime('')
+    await addTask({ title, priority, dueDate, time })
   }
 
   return (
@@ -58,11 +62,26 @@ export default function TaskInput({ defaultDueDate }: { defaultDueDate?: string 
           aria-label="Fällig am"
           className={fieldClass}
         />
+        <input
+          type="time"
+          step={900}
+          value={time}
+          onChange={(e) => setTime(e.target.value)}
+          aria-label="Uhrzeit"
+          title="Mit Uhrzeit wird die Aufgabe direkt in den Tagesplan eingetragen (1 Stunde)"
+          className={fieldClass}
+        />
         {dueDate && (
           <button type="button" onClick={() => setDueDate('')} className="text-xs text-slate-500 hover:underline">
             Kein Datum
           </button>
         )}
+        {time && (
+          <button type="button" onClick={() => setTime('')} className="text-xs text-slate-500 hover:underline">
+            Keine Zeit
+          </button>
+        )}
+        {time && !dueDate && <span className="text-xs text-slate-500 dark:text-slate-400">→ heute</span>}
       </div>
     </form>
   )
