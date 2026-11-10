@@ -96,3 +96,25 @@ export function weekStart(date: string): string {
   const weekday = (new Date(y, m - 1, d).getDay() + 6) % 7 // Mo = 0
   return addDays(date, -weekday)
 }
+
+export interface SourceTotals {
+  tasks: number
+  habits: number
+  focus: number
+  goals: number
+}
+
+/** Punkte je Quelle im Zeitraum [from, to] (lokale Daten, inklusive). */
+export function pointsBySource(
+  { tasks, habitChecks = [], focus = [], goals = [] }: PointSources,
+  from: string,
+  to: string,
+): SourceTotals {
+  const inRange = (d?: string) => !!d && d >= from && d <= to
+  const sum: SourceTotals = { tasks: 0, habits: 0, focus: 0, goals: 0 }
+  for (const t of tasks) if (inRange(doneDate(t))) sum.tasks += taskPoints(t)
+  for (const c of habitChecks) if (inRange(c.date)) sum.habits += HABIT_POINTS
+  for (const f of focus) if (f.doneAt && inRange(localDateOf(f.doneAt))) sum.focus += FOCUS_POINTS
+  for (const g of goals) if (g.achievedAt && inRange(localDateOf(g.achievedAt))) sum.goals += GOAL_POINTS
+  return sum
+}

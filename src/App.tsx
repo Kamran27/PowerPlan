@@ -4,6 +4,8 @@ import Aufgaben from './pages/Aufgaben'
 import Statistik from './pages/Statistik'
 import Gewohnheiten from './pages/Gewohnheiten'
 import Ziele from './pages/Ziele'
+import LevelBadge from './components/LevelBadge'
+import ReminderService from './components/ReminderService'
 import Einstellungen from './pages/Einstellungen'
 
 /** label = Seitenleiste (Desktop), short = Leiste unten (Handy, wenig Platz) */
@@ -28,11 +30,14 @@ function navClass({ isActive }: { isActive: boolean }) {
 
 export default function App() {
   return (
+    <>
+    <ReminderService />
     <div className="min-h-dvh bg-slate-50 text-slate-900 dark:bg-slate-950 dark:text-slate-100 md:flex">
       {/* Seitenleiste (Desktop) / Leiste unten (Handy) */}
       <nav className="fixed inset-x-0 bottom-0 z-10 border-t border-slate-200 bg-white/90 backdrop-blur dark:border-slate-800 dark:bg-slate-900/90 md:static md:w-56 md:shrink-0 md:border-t-0 md:border-r">
         <div className="hidden px-5 py-6 md:block">
           <span className="text-lg font-bold tracking-tight">⚡ PowerPlan</span>
+          <LevelBadge className="-mx-3 mt-3" />
         </div>
         <ul className="flex gap-1 p-2 md:flex-col md:px-3">
           {navItems.map((item) => (
@@ -62,5 +67,6 @@ export default function App() {
         </Routes>
       </main>
     </div>
+    </>
   )
 }

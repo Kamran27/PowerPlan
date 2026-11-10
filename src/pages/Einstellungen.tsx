@@ -1,5 +1,7 @@
 import { useRef, useState } from 'react'
+import InstallAppCard from '../components/InstallAppCard'
 import PageHeader from '../components/PageHeader'
+import ReminderSettingsCard from '../components/ReminderSettingsCard'
 import { useToast } from '../components/Toast'
 import { exportBackup, readBackup, restoreBackup } from '../lib/backup'
 
@@ -86,6 +88,8 @@ export default function Einstellungen() {
           </div>
         )}
       </section>
+      <ReminderSettingsCard />
+      <InstallAppCard />
     </div>
   )
 }

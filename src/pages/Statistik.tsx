@@ -1,11 +1,12 @@
 import { useLiveQuery } from 'dexie-react-hooks'
 import { useMemo, useState } from 'react'
 import PageHeader from '../components/PageHeader'
+import { BadgeGrid, HabitRates, LevelCard, PointsBySource } from '../components/StatsExtras'
 import { db } from '../db'
 import { addDays, todayISO } from '../lib/date'
 import { moodInfo } from '../lib/moods'
 import { dayStatus, streaks, weekStart, type DayStatus } from '../lib/points'
-import { usePointsByDay } from '../lib/usePoints'
+import { useGame } from '../lib/gameContext'
 
 const DAYS_IN_CHART = 14
 const CHART_HEIGHT = 160 // px
@@ -24,7 +25,8 @@ function formatDay(iso: string, opts: Intl.DateTimeFormatOptions) {
 
 export default function Statistik() {
   const tasks = useLiveQuery(() => db.tasks.toArray(), [])
-  const byDay = usePointsByDay()
+  const game = useGame()
+  const byDay = game.byDay
   const logs = useLiveQuery(() => db.dayLogs.orderBy('date').reverse().limit(10).toArray(), [])
   const [hovered, setHovered] = useState<number | null>(null)
   const today = todayISO()
@@ -53,6 +55,8 @@ export default function Statistik() {
   return (
     <div className="max-w-3xl">
       <PageHeader title="Statistik" subtitle="Dein Fortschritt über die Zeit." />
+
+      <LevelCard />
 
       {/* Kennzahlen */}
       <dl className="grid grid-cols-2 gap-3 sm:grid-cols-4">
@@ -175,6 +179,13 @@ export default function Statistik() {
           </table>
         </details>
       </section>
+
+      <div className="mt-6 grid gap-6 md:grid-cols-2">
+        <PointsBySource today={today} />
+        <HabitRates today={today} />
+      </div>
+
+      <BadgeGrid />
 
       {/* Tagesbilanzen */}
       <section className="mt-6">

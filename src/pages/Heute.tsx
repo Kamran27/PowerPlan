@@ -10,7 +10,7 @@ import WeekFocus from '../components/WeekFocus'
 import { db, type Task } from '../db'
 import { localDateOf, todayISO } from '../lib/date'
 import { streaks, weekStart } from '../lib/points'
-import { usePointsByDay } from '../lib/usePoints'
+import { useGame } from '../lib/gameContext'
 import { compareTasks } from '../lib/tasks'
 import { useDayBlocks, useScheduledTimes } from '../lib/useDayBlocks'
 import { useHabits } from '../lib/useHabits'
@@ -44,7 +44,8 @@ export default function Heute() {
   const total = list.length
   const pct = total ? Math.round((doneTasks.length / total) * 100) : 0
 
-  const pointsToday = usePointsByDay().get(today) ?? 0
+  const game = useGame()
+  const pointsToday = game.byDay.get(today) ?? 0
   const streak = useMemo(() => streaks(allTasks ?? [], today), [allTasks, today])
   const allDoneToday = total > 0 && openTasks.length === 0
 
@@ -72,6 +73,10 @@ export default function Heute() {
           <span title={`Bester Streak: ${streak.best} ${streak.best === 1 ? 'Tag' : 'Tage'}`}>
             <span aria-hidden>🔥</span> <strong className="tabular-nums">{streak.current}</strong>{' '}
             {streak.current === 1 ? 'Tag' : 'Tage'} Streak
+          </span>
+          <span title={`Noch ${game.level.needed - game.level.into} Punkte bis Level ${game.level.level + 1}`}>
+            <span aria-hidden>⭐</span> Level <strong className="tabular-nums">{game.level.level}</strong>{' '}
+            <span className="text-slate-500 dark:text-slate-400">({game.level.pct} %)</span>
           </span>
           {allDoneToday && (
             <span className="font-medium text-emerald-600 dark:text-emerald-400">
