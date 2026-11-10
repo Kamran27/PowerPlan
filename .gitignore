@@ -22,3 +22,7 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Dexie Cloud: Zugangsdaten der Datenbank – niemals committen!
+dexie-cloud.json
+*.key
