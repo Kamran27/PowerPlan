@@ -7,7 +7,7 @@ export function useDayBlocks(date: string) {
 }
 
 /**
- * Aufgabe → geplante Startzeit, für alle Blöcke ab `fromDate` (heute und später).
+ * Aufgabe → geplante Zeitspanne ("14:00–15:00"), für alle Blöcke ab `fromDate` (heute und später).
  * Hat eine Aufgabe mehrere Blöcke, zählt der früheste.
  */
 export function useScheduledTimes(fromDate: string) {
@@ -20,7 +20,7 @@ export function useScheduledTimes(fromDate: string) {
     const prev = firstKey.get(b.taskId)
     if (!prev || key < prev) {
       firstKey.set(b.taskId, key)
-      scheduled.set(b.taskId, b.start)
+      scheduled.set(b.taskId, `${b.start}–${b.end}`)
     }
   }
   return scheduled

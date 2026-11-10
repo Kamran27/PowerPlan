@@ -4,7 +4,7 @@ import TaskItem from './TaskItem'
 interface Props {
   tasks: Task[]
   empty: string
-  /** Aufgaben-ID → Startzeit im heutigen Tagesplan. */
+  /** Aufgaben-ID → geplante Zeitspanne im Tagesplan. */
   scheduled?: Map<number, string>
 }
 

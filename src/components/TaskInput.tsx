@@ -1,24 +1,31 @@
 import { useState, type FormEvent } from 'react'
 import { addTask, PRIORITIES, type Priority } from '../lib/tasks'
+import { timeRangeError } from '../lib/time'
+import TimeRangeInput from './TimeRangeInput'
 
 const fieldClass =
   'rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-sm text-slate-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200'
 
-/** Schnelleingabe für neue Aufgaben. */
+/** Schnelleingabe für neue Aufgaben: Titel, Priorität, Datum und Uhrzeit (Beginn – Ende). */
 export default function TaskInput({ defaultDueDate }: { defaultDueDate?: string }) {
   const [title, setTitle] = useState('')
   const [priority, setPriority] = useState<Priority>(2)
   const [dueDate, setDueDate] = useState(defaultDueDate ?? '')
-  const [time, setTime] = useState('')
+  const [start, setStart] = useState('')
+  const [end, setEnd] = useState('')
+
+  const timeError = timeRangeError(start, end)
+  const canSubmit = !!title.trim() && !timeError
 
   async function submit(e: FormEvent) {
     e.preventDefault()
-    if (!title.trim()) return
+    if (!canSubmit) return
     // Sofort leeren, damit schnelles Weitertippen nicht verloren geht.
     // Die Uhrzeit gilt nur für diese eine Aufgabe; Priorität und Datum bleiben für die nächste stehen.
     setTitle('')
-    setTime('')
-    await addTask({ title, priority, dueDate, time })
+    setStart('')
+    setEnd('')
+    await addTask({ title, priority, dueDate, start, end })
   }
 
   return (
@@ -36,7 +43,7 @@ export default function TaskInput({ defaultDueDate }: { defaultDueDate?: string 
         />
         <button
           type="submit"
-          disabled={!title.trim()}
+          disabled={!canSubmit}
           className="rounded-lg bg-indigo-600 px-3 py-1.5 text-sm font-semibold text-white hover:bg-indigo-500 disabled:opacity-40"
         >
           Hinzufügen
@@ -62,27 +69,39 @@ export default function TaskInput({ defaultDueDate }: { defaultDueDate?: string 
           aria-label="Fällig am"
           className={fieldClass}
         />
-        <input
-          type="time"
-          step={900}
-          value={time}
-          onChange={(e) => setTime(e.target.value)}
-          aria-label="Uhrzeit"
-          title="Mit Uhrzeit wird die Aufgabe direkt in den Tagesplan eingetragen (1 Stunde)"
+        <TimeRangeInput
+          start={start}
+          end={end}
+          onChange={(s, e) => {
+            setStart(s)
+            setEnd(e)
+          }}
           className={fieldClass}
         />
-        {dueDate && (
-          <button type="button" onClick={() => setDueDate('')} className="text-xs text-slate-500 hover:underline">
-            Kein Datum
-          </button>
-        )}
-        {time && (
-          <button type="button" onClick={() => setTime('')} className="text-xs text-slate-500 hover:underline">
-            Keine Zeit
-          </button>
-        )}
-        {time && !dueDate && <span className="text-xs text-slate-500 dark:text-slate-400">→ heute</span>}
       </div>
+      {(dueDate || start || timeError) && (
+        <div className="mt-1.5 flex flex-wrap items-center gap-3 px-1 text-xs">
+          {dueDate && (
+            <button type="button" onClick={() => setDueDate('')} className="text-slate-500 hover:underline">
+              Kein Datum
+            </button>
+          )}
+          {start && (
+            <button
+              type="button"
+              onClick={() => {
+                setStart('')
+                setEnd('')
+              }}
+              className="text-slate-500 hover:underline"
+            >
+              Keine Zeit
+            </button>
+          )}
+          {start && !dueDate && !timeError && <span className="text-slate-500 dark:text-slate-400">→ wird für heute geplant</span>}
+          {timeError && <span className="text-rose-600 dark:text-rose-400">{timeError}</span>}
+        </div>
+      )}
     </form>
   )
 }

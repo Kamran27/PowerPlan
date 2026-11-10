@@ -1,8 +1,19 @@
 import { useState, type FormEvent } from 'react'
-import type { Task } from '../db'
+import type { Task, TimeBlock } from '../db'
 import { describeDue } from '../lib/date'
-import { deleteTask, priorityInfo, PRIORITIES, restoreTask, toggleTask, updateTask, type Priority } from '../lib/tasks'
+import {
+  deleteTask,
+  findTaskBlock,
+  priorityInfo,
+  PRIORITIES,
+  restoreTask,
+  saveTaskWithTime,
+  toggleTask,
+  type Priority,
+} from '../lib/tasks'
+import { timeRangeError } from '../lib/time'
 import { scheduleTaskToday, TASK_DRAG_TYPE } from '../lib/timeblocks'
+import TimeRangeInput from './TimeRangeInput'
 import { useToast } from './Toast'
 
 const dueColors = {
@@ -17,13 +28,20 @@ const fieldClass =
 
 interface Props {
   task: Task
-  /** Startzeit, falls die Aufgabe heute schon im Tagesplan steht. */
+  /** Geplante Zeitspanne („14:00–15:00“), falls die Aufgabe im Tagesplan steht. */
   scheduledAt?: string
 }
 
 export default function TaskItem({ task, scheduledAt }: Props) {
   const [editing, setEditing] = useState(false)
+  const [editBlock, setEditBlock] = useState<TimeBlock | undefined>()
   const toast = useToast()
+
+  // Vor dem Öffnen den zugehörigen Tagesplan-Block laden, damit Beginn/Ende vorausgefüllt sind.
+  async function openEditor() {
+    setEditBlock(await findTaskBlock(task))
+    setEditing(true)
+  }
 
   async function remove() {
     await deleteTask(task.id)
@@ -36,7 +54,7 @@ export default function TaskItem({ task, scheduledAt }: Props) {
     else toast(`Eingeplant um ${result.start} Uhr`, { label: 'Rückgängig', onClick: result.undo })
   }
 
-  if (editing) return <TaskEditor task={task} onClose={() => setEditing(false)} />
+  if (editing) return <TaskEditor task={task} block={editBlock} onClose={() => setEditing(false)} />
 
   const prio = priorityInfo(task.priority)
   const due = task.dueDate ? describeDue(task.dueDate) : null
@@ -59,7 +77,7 @@ export default function TaskItem({ task, scheduledAt }: Props) {
         aria-label={task.done ? 'Als offen markieren' : 'Als erledigt markieren'}
         className="mt-0.5 size-5 shrink-0 cursor-pointer accent-indigo-600"
       />
-      <button onClick={() => setEditing(true)} className="min-w-0 flex-1 text-left" title="Bearbeiten">
+      <button onClick={openEditor} className="min-w-0 flex-1 text-left" title="Bearbeiten">
         <span className={task.done ? 'text-slate-400 line-through dark:text-slate-500' : ''}>{task.title}</span>
         {task.notes && !task.done && (
           <span className="mt-0.5 block truncate text-sm text-slate-500 dark:text-slate-400">{task.notes}</span>
@@ -98,21 +116,26 @@ export default function TaskItem({ task, scheduledAt }: Props) {
   )
 }
 
-function TaskEditor({ task, onClose }: { task: Task; onClose: () => void }) {
+function TaskEditor({ task, block, onClose }: { task: Task; block?: TimeBlock; onClose: () => void }) {
   const [title, setTitle] = useState(task.title)
   const [notes, setNotes] = useState(task.notes ?? '')
   const [priority, setPriority] = useState<Priority>(task.priority)
   const [dueDate, setDueDate] = useState(task.dueDate ?? '')
+  const [start, setStart] = useState(block?.start ?? '')
+  const [end, setEnd] = useState(block?.end ?? '')
+
+  const timeError = timeRangeError(start, end)
+  const canSave = !!title.trim() && !timeError
 
   async function save(e: FormEvent) {
     e.preventDefault()
-    if (!title.trim()) return
-    await updateTask(task.id, {
-      title: title.trim(),
-      notes: notes.trim() || undefined,
-      priority,
-      dueDate: dueDate || undefined,
-    })
+    if (!canSave) return
+    await saveTaskWithTime(
+      task,
+      { title: title.trim(), notes: notes.trim() || undefined, priority, dueDate: dueDate || undefined },
+      { start, end },
+      block,
+    )
     onClose()
   }
 
@@ -154,11 +177,36 @@ function TaskEditor({ task, onClose }: { task: Task; onClose: () => void }) {
             aria-label="Fällig am"
             className={fieldClass}
           />
+          <TimeRangeInput
+            start={start}
+            end={end}
+            onChange={(s, e) => {
+              setStart(s)
+              setEnd(e)
+            }}
+            className={fieldClass}
+          />
+        </div>
+        <div className="flex flex-wrap items-center gap-3 text-xs">
+          {start && (
+            <button
+              type="button"
+              onClick={() => {
+                setStart('')
+                setEnd('')
+              }}
+              className="text-slate-500 hover:underline"
+            >
+              {block ? 'Aus dem Tagesplan entfernen' : 'Keine Zeit'}
+            </button>
+          )}
+          {start && !dueDate && !timeError && <span className="text-slate-500 dark:text-slate-400">→ wird für heute geplant</span>}
+          {timeError && <span className="text-rose-600 dark:text-rose-400">{timeError}</span>}
           <div className="ml-auto flex gap-2">
             <button type="button" onClick={onClose} className="rounded-lg px-3 py-1.5 text-sm text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800">
               Abbrechen
             </button>
-            <button type="submit" disabled={!title.trim()} className="rounded-lg bg-indigo-600 px-3 py-1.5 text-sm font-semibold text-white hover:bg-indigo-500 disabled:opacity-40">
+            <button type="submit" disabled={!canSave} className="rounded-lg bg-indigo-600 px-3 py-1.5 text-sm font-semibold text-white hover:bg-indigo-500 disabled:opacity-40">
               Speichern
             </button>
           </div>

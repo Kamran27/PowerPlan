@@ -28,3 +28,14 @@ export function nowMinutes(): number {
   const d = new Date()
   return d.getHours() * 60 + d.getMinutes()
 }
+
+/** Ende einer Zeitspanne; ohne Ende: Beginn + Standarddauer (max. 23:59). */
+export function resolveEnd(start: string, end?: string): string {
+  return end || fromMinutes(Math.min(toMinutes(start) + DEFAULT_DURATION, MAX_END))
+}
+
+/** Fehlermeldung für eine Zeitspanne, oder '' wenn alles passt. */
+export function timeRangeError(start: string, end: string): string {
+  if (start && end && toMinutes(end) <= toMinutes(start)) return 'Das Ende muss nach dem Beginn liegen.'
+  return ''
+}
