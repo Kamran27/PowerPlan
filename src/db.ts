@@ -10,6 +10,8 @@ export interface Task {
   done: boolean
   doneAt?: string // ISO-Zeitstempel
   createdAt: string
+  /** Verknüpftes Monatsziel (ab M5). */
+  goalId?: number
 }
 
 /** Ein Zeitblock im Tagesplan (ab M2). Zeiten als "HH:MM". */
@@ -48,12 +50,38 @@ export interface HabitCheck {
   doneAt: string
 }
 
+/** Ein Monatsziel (ab M5). Fortschritt = erledigte / verknüpfte Aufgaben. */
+export interface Goal {
+  id: number
+  title: string
+  /** Monat "JJJJ-MM" */
+  month: string
+  /** ISO-Zeitstempel, wenn als erreicht markiert */
+  achievedAt?: string
+  createdAt: string
+}
+
+/** Eine der drei Wochenprioritäten (ab M5). */
+export interface FocusItem {
+  id: number
+  /** Montag der Woche "JJJJ-MM-TT" */
+  week: string
+  /** Platz 0, 1 oder 2 */
+  slot: number
+  title: string
+  goalId?: number
+  /** ISO-Zeitstempel, wenn erledigt */
+  doneAt?: string
+}
+
 export const db = new Dexie('powerplan') as Dexie & {
   tasks: EntityTable<Task, 'id'>
   timeBlocks: EntityTable<TimeBlock, 'id'>
   dayLogs: EntityTable<DayLog, 'date'>
   habits: EntityTable<Habit, 'id'>
   habitChecks: Table<HabitCheck, [number, string]>
+  goals: EntityTable<Goal, 'id'>
+  weekFocus: EntityTable<FocusItem, 'id'>
 }
 
 // Indizes: nur Felder, nach denen gesucht/sortiert wird.
@@ -67,4 +95,10 @@ db.version(1).stores({
 db.version(2).stores({
   habits: '++id, createdAt',
   habitChecks: '[habitId+date], habitId, date',
+})
+// Version 3 (M5): Ziele und Wochenfokus; Aufgaben bekommen einen Index auf goalId.
+db.version(3).stores({
+  tasks: '++id, done, dueDate, priority, createdAt, goalId',
+  goals: '++id, month',
+  weekFocus: '++id, week, goalId',
 })

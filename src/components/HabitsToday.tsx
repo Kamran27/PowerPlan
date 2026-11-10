@@ -18,6 +18,7 @@ export default function HabitsToday({ habits, doneByHabit, today }: Props) {
   if (habits.length === 0) {
     return (
       <p className="text-sm text-slate-500 dark:text-slate-400">
+        <span className="mb-2 block text-base font-semibold text-slate-900 dark:text-slate-100">Gewohnheiten</span>
         Noch keine Gewohnheiten.{' '}
         <Link to="/gewohnheiten" className="text-indigo-600 hover:underline dark:text-indigo-400">
           Jetzt anlegen →
@@ -26,7 +27,12 @@ export default function HabitsToday({ habits, doneByHabit, today }: Props) {
     )
   }
   if (dueToday.length === 0) {
-    return <p className="text-sm text-slate-500 dark:text-slate-400">Heute ist keine Gewohnheit fällig. 🌿</p>
+    return (
+      <p className="text-sm text-slate-500 dark:text-slate-400">
+        <span className="mb-2 block text-base font-semibold text-slate-900 dark:text-slate-100">Gewohnheiten</span>
+        Heute ist keine Gewohnheit fällig. 🌿
+      </p>
+    )
   }
 
   return (

@@ -18,7 +18,14 @@ export function priorityInfo(p: Priority) {
  * Legt eine Aufgabe an. Mit Uhrzeit (`start`, optional `end`, "HH:MM") wird sie zusätzlich als
  * Block (ohne Ende: 1 Stunde) in den Tagesplan des Fälligkeitstags eingetragen (ohne Datum: heute).
  */
-export async function addTask(input: { title: string; priority: Priority; dueDate?: string; start?: string; end?: string }) {
+export async function addTask(input: {
+  title: string
+  priority: Priority
+  dueDate?: string
+  start?: string
+  end?: string
+  goalId?: number
+}) {
   const title = input.title.trim()
   if (!title) return
   const dueDate = input.dueDate || (input.start ? todayISO() : undefined)
@@ -30,6 +37,7 @@ export async function addTask(input: { title: string; priority: Priority; dueDat
       dueDate,
       done: false,
       createdAt: new Date().toISOString(),
+      goalId: input.goalId,
     } as Task)
     if (input.start && dueDate) {
       await db.timeBlocks.add({
@@ -94,7 +102,7 @@ export async function findTaskBlock(task: Task): Promise<TimeBlock | undefined> 
  */
 export async function saveTaskWithTime(
   task: Task,
-  changes: { title: string; notes?: string; priority: Priority; dueDate?: string },
+  changes: { title: string; notes?: string; priority: Priority; dueDate?: string; goalId?: number },
   time: { start: string; end: string },
   block?: TimeBlock,
 ) {

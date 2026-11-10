@@ -6,9 +6,11 @@ import HabitsToday from '../components/HabitsToday'
 import PageHeader from '../components/PageHeader'
 import TaskInput from '../components/TaskInput'
 import TaskList from '../components/TaskList'
+import WeekFocus from '../components/WeekFocus'
 import { db, type Task } from '../db'
 import { localDateOf, todayISO } from '../lib/date'
-import { pointsByDay, streaks } from '../lib/points'
+import { streaks, weekStart } from '../lib/points'
+import { usePointsByDay } from '../lib/usePoints'
 import { compareTasks } from '../lib/tasks'
 import { useDayBlocks, useScheduledTimes } from '../lib/useDayBlocks'
 import { useHabits } from '../lib/useHabits'
@@ -31,7 +33,7 @@ export default function Heute() {
   const dateLabel = now.toLocaleDateString('de-DE', { weekday: 'long', day: 'numeric', month: 'long' })
 
   const allTasks = useLiveQuery(() => db.tasks.toArray(), [])
-  const { habits, checks, doneByHabit, loaded: habitsLoaded } = useHabits()
+  const { habits, doneByHabit, loaded: habitsLoaded } = useHabits()
   const blocks = useDayBlocks(today)
   const scheduled = useScheduledTimes(today)
   const tasksById = useMemo(() => new Map((allTasks ?? []).map((t) => [t.id, t])), [allTasks])
@@ -42,7 +44,7 @@ export default function Heute() {
   const total = list.length
   const pct = total ? Math.round((doneTasks.length / total) * 100) : 0
 
-  const pointsToday = useMemo(() => pointsByDay(allTasks ?? [], checks ?? []).get(today) ?? 0, [allTasks, checks, today])
+  const pointsToday = usePointsByDay().get(today) ?? 0
   const streak = useMemo(() => streaks(allTasks ?? [], today), [allTasks, today])
   const allDoneToday = total > 0 && openTasks.length === 0
 
@@ -79,11 +81,17 @@ export default function Heute() {
         </div>
       </section>
 
-      {habitsLoaded && (
-        <section className="mb-6">
-          <HabitsToday habits={habits!} doneByHabit={doneByHabit} today={today} />
+      <div className="mb-6 grid gap-6 md:grid-cols-2">
+        <section>
+          <h2 className="mb-2 font-semibold">Wochenfokus</h2>
+          <WeekFocus week={weekStart(today)} compact />
         </section>
-      )}
+        {habitsLoaded && (
+          <section>
+            <HabitsToday habits={habits!} doneByHabit={doneByHabit} today={today} />
+          </section>
+        )}
+      </div>
 
       <div className="grid gap-6 lg:grid-cols-2 lg:items-start">
         <section>

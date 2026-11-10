@@ -1,5 +1,6 @@
-import type { HabitCheck, Task } from '../db'
+import type { FocusItem, Goal, HabitCheck, Task } from '../db'
 import { addDays, localDateOf, todayISO } from './date'
+import { FOCUS_POINTS, GOAL_POINTS } from './goals'
 import { HABIT_POINTS } from './habits'
 
 /** Punkte pro erledigter Aufgabe, nach Priorität. */
@@ -14,14 +15,28 @@ function doneDate(t: Task): string | undefined {
   return t.done && t.doneAt ? localDateOf(t.doneAt) : undefined
 }
 
-/** Punkte pro Tag (Datum → Summe) aus erledigten Aufgaben und abgehakten Gewohnheiten. */
-export function pointsByDay(tasks: Task[], habitChecks: HabitCheck[] = []): Map<string, number> {
+/** Alles, was Punkte bringt. */
+export interface PointSources {
+  tasks: Task[]
+  habitChecks?: HabitCheck[]
+  focus?: FocusItem[]
+  goals?: Goal[]
+}
+
+/**
+ * Punkte pro Tag (Datum → Summe):
+ * Aufgaben 30/20/10 · Gewohnheit 10 · Wochenfokus 25 · Monatsziel erreicht 100.
+ */
+export function pointsByDay({ tasks, habitChecks = [], focus = [], goals = [] }: PointSources): Map<string, number> {
   const map = new Map<string, number>()
+  const add = (date: string, pts: number) => map.set(date, (map.get(date) ?? 0) + pts)
   for (const t of tasks) {
     const d = doneDate(t)
-    if (d) map.set(d, (map.get(d) ?? 0) + taskPoints(t))
+    if (d) add(d, taskPoints(t))
   }
-  for (const c of habitChecks) map.set(c.date, (map.get(c.date) ?? 0) + HABIT_POINTS)
+  for (const c of habitChecks) add(c.date, HABIT_POINTS)
+  for (const f of focus) if (f.doneAt) add(localDateOf(f.doneAt), FOCUS_POINTS)
+  for (const g of goals) if (g.achievedAt) add(localDateOf(g.achievedAt), GOAL_POINTS)
   return map
 }
 

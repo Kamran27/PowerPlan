@@ -1,8 +1,8 @@
-import { db, type DayLog, type Habit, type HabitCheck, type Task, type TimeBlock } from '../db'
+import { db, type DayLog, type FocusItem, type Goal, type Habit, type HabitCheck, type Task, type TimeBlock } from '../db'
 
 const FORMAT = 'powerplan-backup'
-/** 1 = Aufgaben, Zeitblöcke, Tagesbilanzen · 2 = zusätzlich Gewohnheiten (M4) */
-const VERSION = 2
+/** 1 = Aufgaben, Zeitblöcke, Tagesbilanzen · 2 = + Gewohnheiten (M4) · 3 = + Ziele und Wochenfokus (M5) */
+const VERSION = 3
 
 interface Backup {
   format: typeof FORMAT
@@ -13,6 +13,8 @@ interface Backup {
   dayLogs: DayLog[]
   habits: Habit[]
   habitChecks: HabitCheck[]
+  goals: Goal[]
+  weekFocus: FocusItem[]
 }
 
 /** Alle Daten als JSON-Datei herunterladen. */
@@ -26,6 +28,8 @@ export async function exportBackup() {
     dayLogs: await db.dayLogs.toArray(),
     habits: await db.habits.toArray(),
     habitChecks: await db.habitChecks.toArray(),
+    goals: await db.goals.toArray(),
+    weekFocus: await db.weekFocus.toArray(),
   }
   const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' })
   const url = URL.createObjectURL(blob)
@@ -36,7 +40,7 @@ export async function exportBackup() {
   URL.revokeObjectURL(url)
 }
 
-/** Liest und prüft eine Backup-Datei (Version 1 oder 2). Wirft einen Fehler mit deutscher Meldung, wenn ungültig. */
+/** Liest und prüft eine Backup-Datei (Version 1–3). Wirft einen Fehler mit deutscher Meldung, wenn ungültig. */
 export async function readBackup(file: File): Promise<Backup> {
   let data: unknown
   try {
@@ -61,12 +65,14 @@ export async function readBackup(file: File): Promise<Backup> {
     dayLogs: list(b.dayLogs),
     habits: list(b.habits), // fehlt in Version-1-Sicherungen
     habitChecks: list(b.habitChecks),
+    goals: list(b.goals), // ab Version 3
+    weekFocus: list(b.weekFocus),
   }
 }
 
 /** Ersetzt alle vorhandenen Daten durch die Sicherung (alles oder nichts). */
 export async function restoreBackup(b: Backup) {
-  const tables = [db.tasks, db.timeBlocks, db.dayLogs, db.habits, db.habitChecks]
+  const tables = [db.tasks, db.timeBlocks, db.dayLogs, db.habits, db.habitChecks, db.goals, db.weekFocus]
   await db.transaction('rw', tables, async () => {
     await Promise.all(tables.map((t) => t.clear()))
     await db.tasks.bulkAdd(b.tasks)
@@ -74,5 +80,7 @@ export async function restoreBackup(b: Backup) {
     await db.dayLogs.bulkAdd(b.dayLogs)
     await db.habits.bulkAdd(b.habits)
     await db.habitChecks.bulkAdd(b.habitChecks)
+    await db.goals.bulkAdd(b.goals)
+    await db.weekFocus.bulkAdd(b.weekFocus)
   })
 }

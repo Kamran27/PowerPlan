@@ -4,7 +4,8 @@ import PageHeader from '../components/PageHeader'
 import { db } from '../db'
 import { addDays, todayISO } from '../lib/date'
 import { moodInfo } from '../lib/moods'
-import { dayStatus, pointsByDay, streaks, weekStart, type DayStatus } from '../lib/points'
+import { dayStatus, streaks, weekStart, type DayStatus } from '../lib/points'
+import { usePointsByDay } from '../lib/usePoints'
 
 const DAYS_IN_CHART = 14
 const CHART_HEIGHT = 160 // px
@@ -23,14 +24,13 @@ function formatDay(iso: string, opts: Intl.DateTimeFormatOptions) {
 
 export default function Statistik() {
   const tasks = useLiveQuery(() => db.tasks.toArray(), [])
-  const habitChecks = useLiveQuery(() => db.habitChecks.toArray(), [])
+  const byDay = usePointsByDay()
   const logs = useLiveQuery(() => db.dayLogs.orderBy('date').reverse().limit(10).toArray(), [])
   const [hovered, setHovered] = useState<number | null>(null)
   const today = todayISO()
 
   const stats = useMemo(() => {
     const all = tasks ?? []
-    const byDay = pointsByDay(all, habitChecks ?? [])
     const monday = weekStart(today)
     let total = 0
     let week = 0
@@ -43,7 +43,7 @@ export default function Statistik() {
       return { date, points: byDay.get(date) ?? 0, status: dayStatus(all, date, today) }
     })
     return { total, week, days, streak: streaks(all, today), byDay }
-  }, [tasks, habitChecks, today])
+  }, [tasks, byDay, today])
 
   if (!tasks) return null
 

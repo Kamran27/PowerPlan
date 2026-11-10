@@ -1,5 +1,6 @@
 import { useState, type FormEvent } from 'react'
-import type { Task, TimeBlock } from '../db'
+import type { Goal, Task, TimeBlock } from '../db'
+import { monthLabel, selectableGoals } from '../lib/goals'
 import { describeDue } from '../lib/date'
 import {
   deleteTask,
@@ -30,9 +31,11 @@ interface Props {
   task: Task
   /** Geplante Zeitspanne („14:00–15:00“), falls die Aufgabe im Tagesplan steht. */
   scheduledAt?: string
+  /** Alle Ziele (für 🎯-Hinweis und Auswahl beim Bearbeiten). */
+  goals?: Goal[]
 }
 
-export default function TaskItem({ task, scheduledAt }: Props) {
+export default function TaskItem({ task, scheduledAt, goals = [] }: Props) {
   const [editing, setEditing] = useState(false)
   const [editBlock, setEditBlock] = useState<TimeBlock | undefined>()
   const toggle = useToggleTask()
@@ -55,10 +58,11 @@ export default function TaskItem({ task, scheduledAt }: Props) {
     else toast(`Eingeplant um ${result.start} Uhr`, { label: 'Rückgängig', onClick: result.undo })
   }
 
-  if (editing) return <TaskEditor task={task} block={editBlock} onClose={() => setEditing(false)} />
+  if (editing) return <TaskEditor task={task} block={editBlock} goals={goals} onClose={() => setEditing(false)} />
 
   const prio = priorityInfo(task.priority)
   const due = task.dueDate ? describeDue(task.dueDate) : null
+  const goal = task.goalId ? goals.find((g) => g.id === task.goalId) : undefined
 
   return (
     <li
@@ -83,7 +87,7 @@ export default function TaskItem({ task, scheduledAt }: Props) {
         {task.notes && !task.done && (
           <span className="mt-0.5 block truncate text-sm text-slate-500 dark:text-slate-400">{task.notes}</span>
         )}
-        {(due || task.priority !== 3 || scheduledAt) && !task.done && (
+        {(due || task.priority !== 3 || scheduledAt || goal) && !task.done && (
           <span className="mt-1 flex items-center gap-3 text-xs">
             {task.priority !== 3 && (
               <span className="flex items-center gap-1 text-slate-500 dark:text-slate-400">
@@ -93,6 +97,7 @@ export default function TaskItem({ task, scheduledAt }: Props) {
             )}
             {due && <span className={`font-medium ${dueColors[due.state]}`}>{due.label}</span>}
             {scheduledAt && <span className="text-emerald-600 dark:text-emerald-400">🕒 {scheduledAt} Uhr</span>}
+            {goal && <span className="truncate text-slate-500 dark:text-slate-400">🎯 {goal.title}</span>}
           </span>
         )}
       </button>
@@ -117,13 +122,14 @@ export default function TaskItem({ task, scheduledAt }: Props) {
   )
 }
 
-function TaskEditor({ task, block, onClose }: { task: Task; block?: TimeBlock; onClose: () => void }) {
+function TaskEditor({ task, block, goals, onClose }: { task: Task; block?: TimeBlock; goals: Goal[]; onClose: () => void }) {
   const [title, setTitle] = useState(task.title)
   const [notes, setNotes] = useState(task.notes ?? '')
   const [priority, setPriority] = useState<Priority>(task.priority)
   const [dueDate, setDueDate] = useState(task.dueDate ?? '')
   const [start, setStart] = useState(block?.start ?? '')
   const [end, setEnd] = useState(block?.end ?? '')
+  const [goalId, setGoalId] = useState<number | undefined>(task.goalId)
 
   const timeError = timeRangeError(start, end)
   const canSave = !!title.trim() && !timeError
@@ -133,7 +139,7 @@ function TaskEditor({ task, block, onClose }: { task: Task; block?: TimeBlock; o
     if (!canSave) return
     await saveTaskWithTime(
       task,
-      { title: title.trim(), notes: notes.trim() || undefined, priority, dueDate: dueDate || undefined },
+      { title: title.trim(), notes: notes.trim() || undefined, priority, dueDate: dueDate || undefined, goalId },
       { start, end },
       block,
     )
@@ -187,6 +193,19 @@ function TaskEditor({ task, block, onClose }: { task: Task; block?: TimeBlock; o
             }}
             className={fieldClass}
           />
+          <select
+            value={goalId ?? ''}
+            onChange={(e) => setGoalId(e.target.value ? Number(e.target.value) : undefined)}
+            aria-label="Monatsziel"
+            className={`${fieldClass} max-w-56`}
+          >
+            <option value="">🎯 Kein Ziel</option>
+            {selectableGoals(goals, task.goalId).map((g) => (
+              <option key={g.id} value={g.id}>
+                🎯 {g.title} ({monthLabel(g.month).split(' ')[0]})
+              </option>
+            ))}
+          </select>
         </div>
         <div className="flex flex-wrap items-center gap-3 text-xs">
           {start && (
