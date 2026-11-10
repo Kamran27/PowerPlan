@@ -2,6 +2,7 @@ import { useLiveQuery } from 'dexie-react-hooks'
 import { useMemo } from 'react'
 import DayReview from '../components/DayReview'
 import DayTimeline from '../components/DayTimeline'
+import HabitsToday from '../components/HabitsToday'
 import PageHeader from '../components/PageHeader'
 import TaskInput from '../components/TaskInput'
 import TaskList from '../components/TaskList'
@@ -10,6 +11,7 @@ import { localDateOf, todayISO } from '../lib/date'
 import { pointsByDay, streaks } from '../lib/points'
 import { compareTasks } from '../lib/tasks'
 import { useDayBlocks, useScheduledTimes } from '../lib/useDayBlocks'
+import { useHabits } from '../lib/useHabits'
 
 function greeting(hour: number) {
   if (hour < 11) return 'Guten Morgen'
@@ -29,6 +31,7 @@ export default function Heute() {
   const dateLabel = now.toLocaleDateString('de-DE', { weekday: 'long', day: 'numeric', month: 'long' })
 
   const allTasks = useLiveQuery(() => db.tasks.toArray(), [])
+  const { habits, checks, doneByHabit, loaded: habitsLoaded } = useHabits()
   const blocks = useDayBlocks(today)
   const scheduled = useScheduledTimes(today)
   const tasksById = useMemo(() => new Map((allTasks ?? []).map((t) => [t.id, t])), [allTasks])
@@ -39,7 +42,7 @@ export default function Heute() {
   const total = list.length
   const pct = total ? Math.round((doneTasks.length / total) * 100) : 0
 
-  const pointsToday = useMemo(() => pointsByDay(allTasks ?? []).get(today) ?? 0, [allTasks, today])
+  const pointsToday = useMemo(() => pointsByDay(allTasks ?? [], checks ?? []).get(today) ?? 0, [allTasks, checks, today])
   const streak = useMemo(() => streaks(allTasks ?? [], today), [allTasks, today])
   const allDoneToday = total > 0 && openTasks.length === 0
 
@@ -75,6 +78,12 @@ export default function Heute() {
           )}
         </div>
       </section>
+
+      {habitsLoaded && (
+        <section className="mb-6">
+          <HabitsToday habits={habits!} doneByHabit={doneByHabit} today={today} />
+        </section>
+      )}
 
       <div className="grid gap-6 lg:grid-cols-2 lg:items-start">
         <section>

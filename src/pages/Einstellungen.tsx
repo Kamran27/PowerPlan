@@ -28,7 +28,7 @@ export default function Einstellungen() {
     if (!pending) return
     try {
       await restoreBackup(pending)
-      toast(`Sicherung wiederhergestellt (${pending.tasks.length} Aufgaben)`)
+      toast(`Sicherung wiederhergestellt (${pending.tasks.length} Aufgaben, ${pending.habits.length} Gewohnheiten)`)
     } catch {
       setError('Wiederherstellen fehlgeschlagen. Deine bisherigen Daten sind unverändert.')
     }
@@ -72,7 +72,7 @@ export default function Einstellungen() {
             <p>
               Sicherung vom{' '}
               <strong>{pending.exportedAt ? new Date(pending.exportedAt).toLocaleString('de-DE') : 'unbekannten Datum'}</strong>{' '}
-              mit <strong>{pending.tasks.length} Aufgaben</strong>.
+              mit <strong>{pending.tasks.length} Aufgaben</strong> und <strong>{pending.habits.length} Gewohnheiten</strong>.
             </p>
             <p className="mt-1">Alle aktuellen Daten in diesem Browser werden dadurch <strong>ersetzt</strong>.</p>
             <div className="mt-3 flex gap-2">

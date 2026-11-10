@@ -1,5 +1,6 @@
-import type { Task } from '../db'
+import type { HabitCheck, Task } from '../db'
 import { addDays, localDateOf, todayISO } from './date'
+import { HABIT_POINTS } from './habits'
 
 /** Punkte pro erledigter Aufgabe, nach Priorität. */
 export const POINTS_BY_PRIORITY: Record<Task['priority'], number> = { 1: 30, 2: 20, 3: 10 }
@@ -13,13 +14,14 @@ function doneDate(t: Task): string | undefined {
   return t.done && t.doneAt ? localDateOf(t.doneAt) : undefined
 }
 
-/** Punkte pro Tag (Datum → Summe) aus allen erledigten Aufgaben. */
-export function pointsByDay(tasks: Task[]): Map<string, number> {
+/** Punkte pro Tag (Datum → Summe) aus erledigten Aufgaben und abgehakten Gewohnheiten. */
+export function pointsByDay(tasks: Task[], habitChecks: HabitCheck[] = []): Map<string, number> {
   const map = new Map<string, number>()
   for (const t of tasks) {
     const d = doneDate(t)
     if (d) map.set(d, (map.get(d) ?? 0) + taskPoints(t))
   }
+  for (const c of habitChecks) map.set(c.date, (map.get(c.date) ?? 0) + HABIT_POINTS)
   return map
 }
 

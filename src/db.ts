@@ -1,4 +1,4 @@
-import Dexie, { type EntityTable } from 'dexie'
+import Dexie, { type EntityTable, type Table } from 'dexie'
 
 /** Eine Aufgabe (To-do). Datumsangaben als ISO-String "JJJJ-MM-TT". */
 export interface Task {
@@ -30,10 +30,30 @@ export interface DayLog {
   savedAt?: string
 }
 
+/** Eine Gewohnheit (ab M4). */
+export interface Habit {
+  id: number
+  name: string
+  emoji?: string
+  /** Fällige Wochentage, 0 = Montag … 6 = Sonntag. Alle 7 = täglich. */
+  days: number[]
+  /** Ab diesem Tag zählt die Gewohnheit ("JJJJ-MM-TT"). */
+  createdAt: string
+}
+
+/** Ein Haken: Gewohnheit an einem Tag erledigt. Schlüssel = [habitId + date]. */
+export interface HabitCheck {
+  habitId: number
+  date: string
+  doneAt: string
+}
+
 export const db = new Dexie('powerplan') as Dexie & {
   tasks: EntityTable<Task, 'id'>
   timeBlocks: EntityTable<TimeBlock, 'id'>
   dayLogs: EntityTable<DayLog, 'date'>
+  habits: EntityTable<Habit, 'id'>
+  habitChecks: Table<HabitCheck, [number, string]>
 }
 
 // Indizes: nur Felder, nach denen gesucht/sortiert wird.
@@ -41,4 +61,10 @@ db.version(1).stores({
   tasks: '++id, done, dueDate, priority, createdAt',
   timeBlocks: '++id, date, taskId',
   dayLogs: 'date',
+})
+
+// Version 2 (M4): Gewohnheiten. Bestehende Daten bleiben unverändert erhalten.
+db.version(2).stores({
+  habits: '++id, createdAt',
+  habitChecks: '[habitId+date], habitId, date',
 })
