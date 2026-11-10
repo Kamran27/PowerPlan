@@ -1,11 +1,13 @@
 import { useLiveQuery } from 'dexie-react-hooks'
 import { useMemo } from 'react'
+import DayReview from '../components/DayReview'
 import DayTimeline from '../components/DayTimeline'
 import PageHeader from '../components/PageHeader'
 import TaskInput from '../components/TaskInput'
 import TaskList from '../components/TaskList'
 import { db, type Task } from '../db'
-import { todayISO } from '../lib/date'
+import { localDateOf, todayISO } from '../lib/date'
+import { pointsByDay, streaks } from '../lib/points'
 import { compareTasks } from '../lib/tasks'
 import { useDayBlocks, useScheduledTimes } from '../lib/useDayBlocks'
 
@@ -17,7 +19,7 @@ function greeting(hour: number) {
 
 /** Heute relevant: offen und heute/früher fällig, oder heute erledigt. */
 function isRelevantToday(t: Task, today: string) {
-  if (t.done) return !!t.doneAt && t.doneAt.startsWith(today)
+  if (t.done) return !!t.doneAt && localDateOf(t.doneAt) === today
   return !!t.dueDate && t.dueDate <= today
 }
 
@@ -32,9 +34,14 @@ export default function Heute() {
   const tasksById = useMemo(() => new Map((allTasks ?? []).map((t) => [t.id, t])), [allTasks])
 
   const list = (allTasks ?? []).filter((t) => isRelevantToday(t, today)).sort(compareTasks)
-  const done = list.filter((t) => t.done).length
+  const doneTasks = list.filter((t) => t.done)
+  const openTasks = list.filter((t) => !t.done)
   const total = list.length
-  const pct = total ? Math.round((done / total) * 100) : 0
+  const pct = total ? Math.round((doneTasks.length / total) * 100) : 0
+
+  const pointsToday = useMemo(() => pointsByDay(allTasks ?? []).get(today) ?? 0, [allTasks, today])
+  const streak = useMemo(() => streaks(allTasks ?? [], today), [allTasks, today])
+  const allDoneToday = total > 0 && openTasks.length === 0
 
   return (
     <>
@@ -44,11 +51,28 @@ export default function Heute() {
         <div className="flex items-baseline justify-between">
           <h2 className="font-semibold">Tagesfortschritt</h2>
           <span className="text-sm text-slate-500 dark:text-slate-400">
-            {total ? `${done} von ${total} erledigt` : 'Noch nichts geplant'}
+            {total ? `${doneTasks.length} von ${total} erledigt` : 'Noch nichts geplant'}
           </span>
         </div>
         <div className="mt-3 h-2 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800">
-          <div className="h-full rounded-full bg-indigo-500 transition-all duration-500" style={{ width: `${pct}%` }} />
+          <div
+            className={`h-full rounded-full transition-all duration-500 ${allDoneToday ? 'bg-emerald-500' : 'bg-indigo-500'}`}
+            style={{ width: `${pct}%` }}
+          />
+        </div>
+        <div className="mt-4 flex flex-wrap items-center gap-x-6 gap-y-2 text-sm">
+          <span>
+            <span aria-hidden>🏆</span> <strong className="tabular-nums">{pointsToday}</strong> Punkte heute
+          </span>
+          <span title={`Bester Streak: ${streak.best} ${streak.best === 1 ? 'Tag' : 'Tage'}`}>
+            <span aria-hidden>🔥</span> <strong className="tabular-nums">{streak.current}</strong>{' '}
+            {streak.current === 1 ? 'Tag' : 'Tage'} Streak
+          </span>
+          {allDoneToday && (
+            <span className="font-medium text-emerald-600 dark:text-emerald-400">
+              Alles erledigt – der Tag zählt für deinen Streak! 🎉
+            </span>
+          )}
         </div>
       </section>
 
@@ -67,6 +91,9 @@ export default function Heute() {
                 empty="Nichts fällig. Füge oben eine Aufgabe für heute hinzu."
               />
             )}
+          </div>
+          <div className="mt-6">
+            {allTasks && <DayReview date={today} points={pointsToday} doneTasks={doneTasks} openTasks={openTasks} />}
           </div>
         </section>
 

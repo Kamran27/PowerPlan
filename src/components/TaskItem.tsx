@@ -8,12 +8,12 @@ import {
   PRIORITIES,
   restoreTask,
   saveTaskWithTime,
-  toggleTask,
   type Priority,
 } from '../lib/tasks'
 import { timeRangeError } from '../lib/time'
 import { scheduleTaskToday, TASK_DRAG_TYPE } from '../lib/timeblocks'
 import TimeRangeInput from './TimeRangeInput'
+import { useToggleTask } from './useToggleTask'
 import { useToast } from './Toast'
 
 const dueColors = {
@@ -35,6 +35,7 @@ interface Props {
 export default function TaskItem({ task, scheduledAt }: Props) {
   const [editing, setEditing] = useState(false)
   const [editBlock, setEditBlock] = useState<TimeBlock | undefined>()
+  const toggle = useToggleTask()
   const toast = useToast()
 
   // Vor dem Öffnen den zugehörigen Tagesplan-Block laden, damit Beginn/Ende vorausgefüllt sind.
@@ -73,7 +74,7 @@ export default function TaskItem({ task, scheduledAt }: Props) {
       <input
         type="checkbox"
         checked={task.done}
-        onChange={() => toggleTask(task)}
+        onChange={() => toggle(task)}
         aria-label={task.done ? 'Als offen markieren' : 'Als erledigt markieren'}
         className="mt-0.5 size-5 shrink-0 cursor-pointer accent-indigo-600"
       />

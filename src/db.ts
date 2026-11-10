@@ -22,11 +22,12 @@ export interface TimeBlock {
   taskId?: number
 }
 
-/** Tagesbilanz (ab M3). */
+/** Abend-Tagesbilanz: Stimmung und Reflexion. Punkte werden immer live aus den Aufgaben berechnet. */
 export interface DayLog {
   date: string
-  points: number
+  mood?: 1 | 2 | 3 | 4 | 5
   reflection?: string
+  savedAt?: string
 }
 
 export const db = new Dexie('powerplan') as Dexie & {

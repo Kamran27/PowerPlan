@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState, type PointerEvent } from 'react'
 import type { Task, TimeBlock } from '../db'
-import { toggleTask } from '../lib/tasks'
 import { clamp, DAY_START, fromMinutes, MAX_END, PX_PER_MIN, SNAP, snap, toMinutes } from '../lib/time'
 import { updateBlock } from '../lib/timeblocks'
+import { useToggleTask } from './useToggleTask'
 
 interface Props {
   block: TimeBlock
@@ -23,6 +23,7 @@ interface DragState {
 /** Ein Zeitblock: Ziehen verschiebt, unterer Rand ändert die Länge, Klick öffnet den Editor. */
 export default function TimeBlockCard({ block, task, lane, lanes, onOpen }: Props) {
   const [preview, setPreview] = useState<{ start: number; end: number } | null>(null)
+  const toggle = useToggleTask()
   const drag = useRef<DragState | null>(null)
 
   // Sobald die gespeicherte Zeit ankommt, Vorschau verwerfen (kein Zurückspringen).
@@ -100,7 +101,7 @@ export default function TimeBlockCard({ block, task, lane, lanes, onOpen }: Prop
           <input
             type="checkbox"
             checked={task.done}
-            onChange={() => toggleTask(task)}
+            onChange={() => toggle(task)}
             onPointerDown={(e) => e.stopPropagation()}
             aria-label={task.done ? 'Als offen markieren' : 'Als erledigt markieren'}
             className="mt-0.5 size-4 shrink-0 cursor-pointer accent-indigo-600"
