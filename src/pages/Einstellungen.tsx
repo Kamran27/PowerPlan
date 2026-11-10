@@ -36,7 +36,7 @@ export default function Einstellungen() {
   }
 
   return (
-    <>
+    <div className="max-w-3xl">
       <PageHeader title="Einstellungen" />
       <section className="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-slate-200 dark:bg-slate-900 dark:ring-slate-800">
         <h2 className="font-semibold">Datensicherung</h2>
@@ -86,6 +86,6 @@ export default function Einstellungen() {
           </div>
         )}
       </section>
-    </>
+    </div>
   )
 }

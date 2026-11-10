@@ -2,6 +2,7 @@ import { useState, type FormEvent } from 'react'
 import type { Task } from '../db'
 import { describeDue } from '../lib/date'
 import { deleteTask, priorityInfo, PRIORITIES, restoreTask, toggleTask, updateTask, type Priority } from '../lib/tasks'
+import { scheduleTaskToday, TASK_DRAG_TYPE } from '../lib/timeblocks'
 import { useToast } from './Toast'
 
 const dueColors = {
@@ -14,7 +15,13 @@ const dueColors = {
 const fieldClass =
   'rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-sm dark:border-slate-700 dark:bg-slate-800'
 
-export default function TaskItem({ task }: { task: Task }) {
+interface Props {
+  task: Task
+  /** Startzeit, falls die Aufgabe heute schon im Tagesplan steht. */
+  scheduledAt?: string
+}
+
+export default function TaskItem({ task, scheduledAt }: Props) {
   const [editing, setEditing] = useState(false)
   const toast = useToast()
 
@@ -23,13 +30,28 @@ export default function TaskItem({ task }: { task: Task }) {
     toast('Aufgabe gelöscht', { label: 'Rückgängig', onClick: () => restoreTask(task) })
   }
 
+  async function schedule() {
+    const result = await scheduleTaskToday(task)
+    if (!result) toast('Heute ist keine freie Stunde mehr im Tagesplan.')
+    else toast(`Eingeplant um ${result.start} Uhr`, { label: 'Rückgängig', onClick: result.undo })
+  }
+
   if (editing) return <TaskEditor task={task} onClose={() => setEditing(false)} />
 
   const prio = priorityInfo(task.priority)
   const due = task.dueDate ? describeDue(task.dueDate) : null
 
   return (
-    <li className="group flex items-start gap-3 rounded-xl px-3 py-2.5 hover:bg-slate-100/70 dark:hover:bg-slate-800/50">
+    <li
+      draggable={!task.done}
+      onDragStart={(e) => {
+        e.dataTransfer.setData(TASK_DRAG_TYPE, String(task.id))
+        e.dataTransfer.effectAllowed = 'copy'
+      }}
+      className={`group flex items-start gap-3 rounded-xl px-3 py-2.5 hover:bg-slate-100/70 dark:hover:bg-slate-800/50 ${
+        task.done ? '' : 'cursor-grab active:cursor-grabbing'
+      }`}
+    >
       <input
         type="checkbox"
         checked={task.done}
@@ -42,7 +64,7 @@ export default function TaskItem({ task }: { task: Task }) {
         {task.notes && !task.done && (
           <span className="mt-0.5 block truncate text-sm text-slate-500 dark:text-slate-400">{task.notes}</span>
         )}
-        {(due || task.priority !== 3) && !task.done && (
+        {(due || task.priority !== 3 || scheduledAt) && !task.done && (
           <span className="mt-1 flex items-center gap-3 text-xs">
             {task.priority !== 3 && (
               <span className="flex items-center gap-1 text-slate-500 dark:text-slate-400">
@@ -51,9 +73,20 @@ export default function TaskItem({ task }: { task: Task }) {
               </span>
             )}
             {due && <span className={`font-medium ${dueColors[due.state]}`}>{due.label}</span>}
+            {scheduledAt && <span className="text-emerald-600 dark:text-emerald-400">🕒 {scheduledAt} Uhr</span>}
           </span>
         )}
       </button>
+      {!task.done && !scheduledAt && (
+        <button
+          onClick={schedule}
+          aria-label="In den Tagesplan einplanen"
+          title="In die nächste freie Stunde einplanen"
+          className="rounded-md px-1.5 text-slate-400 opacity-0 group-hover:opacity-100 hover:text-indigo-600 focus:opacity-100 max-md:opacity-100"
+        >
+          🕒
+        </button>
+      )}
       <button
         onClick={remove}
         aria-label="Aufgabe löschen"

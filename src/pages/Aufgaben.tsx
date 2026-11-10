@@ -6,6 +6,7 @@ import TaskList from '../components/TaskList'
 import { db, type Task } from '../db'
 import { todayISO } from '../lib/date'
 import { compareTasks } from '../lib/tasks'
+import { useDayBlocks } from '../lib/useDayBlocks'
 
 type Filter = 'offen' | 'heute' | 'erledigt' | 'alle'
 
@@ -20,13 +21,14 @@ export default function Aufgaben() {
   const [filter, setFilter] = useState<Filter>('offen')
   const tasks = useLiveQuery(() => db.tasks.toArray(), [])
   const today = todayISO()
+  const { scheduled } = useDayBlocks(today)
 
   const active = FILTERS.find((f) => f.value === filter)!
   const visible = (tasks ?? []).filter((t) => active.test(t, today)).sort(compareTasks)
   const openCount = (tasks ?? []).filter((t) => !t.done).length
 
   return (
-    <>
+    <div className="max-w-3xl">
       <PageHeader title="Aufgaben" subtitle={tasks ? `${openCount} offen` : ' '} />
       <TaskInput />
       <div role="tablist" className="mt-6 mb-2 flex gap-1 overflow-x-auto">
@@ -46,7 +48,7 @@ export default function Aufgaben() {
           </button>
         ))}
       </div>
-      {tasks && <TaskList tasks={visible} empty={active.empty} />}
-    </>
+      {tasks && <TaskList tasks={visible} scheduled={scheduled} empty={active.empty} />}
+    </div>
   )
 }

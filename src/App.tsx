@@ -41,7 +41,7 @@ export default function App() {
         </ul>
       </nav>
 
-      <main className="mx-auto w-full max-w-3xl px-4 pt-6 pb-24 md:px-8 md:pt-10 md:pb-10">
+      <main className="mx-auto w-full max-w-5xl px-4 pt-6 pb-24 md:px-8 md:pt-10 md:pb-10">
         <Routes>
           <Route path="/" element={<Navigate to="/heute" replace />} />
           <Route path="/heute" element={<Heute />} />
