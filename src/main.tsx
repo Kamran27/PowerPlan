@@ -8,7 +8,8 @@ import GameProvider from './components/GameProvider'
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <BrowserRouter>
+    {/* basename: lokal "/", auf GitHub Pages "/PowerPlan" */}
+    <BrowserRouter basename={import.meta.env.BASE_URL.replace(/\/$/, '') || '/'}>
       <ToastProvider>
         <GameProvider>
           <App />

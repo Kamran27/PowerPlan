@@ -6,6 +6,8 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
+    "build:github": "tsc -b && vite build --mode github && cp dist/index.html dist/404.html",
+    "preview:github": "vite preview --mode github",
     "lint": "eslint .",
     "preview": "vite preview"
   },
