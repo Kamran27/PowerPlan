@@ -2,6 +2,7 @@ import { useEffect, useState, type FormEvent } from 'react'
 import type { Task, TimeBlock } from '../db'
 import { toMinutes } from '../lib/time'
 import { addBlock, deleteBlock, restoreBlock, updateBlock } from '../lib/timeblocks'
+import TimeSelect from './TimeSelect'
 import { useToast } from './Toast'
 
 export type BlockDraft = Omit<TimeBlock, 'id'> & { id?: string }
@@ -14,6 +15,7 @@ export default function BlockEditor({ draft, task, onClose }: { draft: BlockDraf
   const [title, setTitle] = useState(draft.title)
   const [start, setStart] = useState(draft.start)
   const [end, setEnd] = useState(draft.end)
+  const [date, setDate] = useState(draft.date)
   const toast = useToast()
 
   useEffect(() => {
@@ -23,12 +25,12 @@ export default function BlockEditor({ draft, task, onClose }: { draft: BlockDraf
   }, [onClose])
 
   const timeError = start && end && toMinutes(end) <= toMinutes(start) ? 'Das Ende muss nach dem Beginn liegen.' : ''
-  const canSave = !timeError && start && end && (task || title.trim())
+  const canSave = !timeError && date && start && end && (task || title.trim())
 
   async function save(e: FormEvent) {
     e.preventDefault()
     if (!canSave) return
-    const data = { date: draft.date, start, end, title: task ? task.title : title.trim(), taskId: draft.taskId }
+    const data = { date, start, end, title: task ? task.title : title.trim(), taskId: draft.taskId }
     if (draft.id) await updateBlock(draft.id, data)
     else await addBlock(data)
     onClose()
@@ -69,15 +71,19 @@ export default function BlockEditor({ draft, task, onClose }: { draft: BlockDraf
             className={fieldClass}
           />
         )}
+        <label className="grid gap-1 text-xs text-slate-500 dark:text-slate-400">
+          Tag
+          <input type="date" required value={date} onChange={(e) => setDate(e.target.value)} className={fieldClass} />
+        </label>
         <div className="grid grid-cols-2 gap-3">
-          <label className="grid gap-1 text-xs text-slate-500 dark:text-slate-400">
+          <div className="grid gap-1 text-xs text-slate-500 dark:text-slate-400">
             Beginn
-            <input type="time" step={900} value={start} onChange={(e) => setStart(e.target.value)} className={fieldClass} />
-          </label>
-          <label className="grid gap-1 text-xs text-slate-500 dark:text-slate-400">
+            <TimeSelect value={start} onChange={setStart} label="Beginn" allowEmpty={false} className={fieldClass} />
+          </div>
+          <div className="grid gap-1 text-xs text-slate-500 dark:text-slate-400">
             Ende
-            <input type="time" step={900} value={end} onChange={(e) => setEnd(e.target.value)} className={fieldClass} />
-          </label>
+            <TimeSelect value={end} onChange={setEnd} label="Ende" allowEmpty={false} className={fieldClass} />
+          </div>
         </div>
         {timeError && <p className="text-sm text-rose-600 dark:text-rose-400">{timeError}</p>}
         <div className="mt-1 flex items-center gap-2">

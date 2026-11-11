@@ -39,3 +39,7 @@ export function timeRangeError(start: string, end: string): string {
   if (start && end && toMinutes(end) <= toMinutes(start)) return 'Das Ende muss nach dem Beginn liegen.'
   return ''
 }
+
+/** Höhe des Zeitrasters in Pixeln und die angezeigten vollen Stunden (06 … 23). */
+export const GRID_HEIGHT = (DAY_END - DAY_START) * PX_PER_MIN
+export const GRID_HOURS = Array.from({ length: (DAY_END - DAY_START) / 60 }, (_, i) => DAY_START / 60 + i)

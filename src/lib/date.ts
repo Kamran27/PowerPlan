@@ -41,3 +41,13 @@ function formatShort(iso: string): string {
 export function localDateOf(isoTimestamp: string): string {
   return toISODate(new Date(isoTimestamp))
 }
+
+/** Kalenderwoche nach ISO 8601 (Woche mit dem ersten Donnerstag = KW 1). */
+export function isoWeekNumber(iso: string): number {
+  const [y, m, d] = iso.split('-').map(Number)
+  const date = new Date(Date.UTC(y, m - 1, d))
+  const day = date.getUTCDay() || 7
+  date.setUTCDate(date.getUTCDate() + 4 - day)
+  const yearStart = new Date(Date.UTC(date.getUTCFullYear(), 0, 1))
+  return Math.ceil(((date.getTime() - yearStart.getTime()) / 86400000 + 1) / 7)
+}

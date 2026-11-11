@@ -1,4 +1,5 @@
 import { DEFAULT_DURATION, fromMinutes, MAX_END, toMinutes } from '../lib/time'
+import TimeSelect from './TimeSelect'
 
 interface Props {
   start: string
@@ -8,7 +9,7 @@ interface Props {
 }
 
 /**
- * Zwei Uhrzeitfelder „Beginn – Ende“ (15-Minuten-Raster).
+ * Zwei Uhrzeitfelder „Beginn – Ende“ im 24-Stunden-Format.
  * - Beginn setzen: Ende folgt automatisch (gleiche Dauer wie bisher, sonst 1 Stunde)
  * - Beginn leeren: Ende wird ebenfalls geleert
  * - Ende ist erst wählbar, wenn ein Beginn gesetzt ist
@@ -23,27 +24,24 @@ export default function TimeRangeInput({ start, end, onChange, className }: Prop
 
   return (
     <span className="flex items-center gap-1">
-      <input
-        type="time"
-        step={900}
+      <TimeSelect
         value={start}
-        onChange={(e) => changeStart(e.target.value)}
-        aria-label="Beginn"
+        onChange={changeStart}
+        label="Beginn"
         title="Beginn – mit Uhrzeit landet die Aufgabe im Tagesplan"
         className={className}
       />
       <span className="text-slate-400" aria-hidden>
         –
       </span>
-      <input
-        type="time"
-        step={900}
+      <TimeSelect
         value={end}
-        onChange={(e) => onChange(start, e.target.value)}
+        onChange={(v) => onChange(start, v)}
+        label="Ende"
+        allowEmpty={false}
         disabled={!start}
-        aria-label="Ende"
         title={start ? 'Ende' : 'Erst einen Beginn wählen'}
-        className={`${className} disabled:opacity-40`}
+        className={className}
       />
     </span>
   )

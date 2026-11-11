@@ -1,5 +1,6 @@
-import { NavLink, Navigate, Route, Routes } from 'react-router-dom'
+import { NavLink, Navigate, Route, Routes, useLocation } from 'react-router-dom'
 import Heute from './pages/Heute'
+import Woche from './pages/Woche'
 import Aufgaben from './pages/Aufgaben'
 import Statistik from './pages/Statistik'
 import Gewohnheiten from './pages/Gewohnheiten'
@@ -14,6 +15,7 @@ import Einstellungen from './pages/Einstellungen'
 /** label = Seitenleiste (Desktop), short = Leiste unten (Handy, wenig Platz) */
 const navItems = [
   { to: '/heute', label: 'Heute', short: 'Heute', icon: '☀️' },
+  { to: '/woche', label: 'Woche', short: 'Woche', icon: '🗓️' },
   { to: '/aufgaben', label: 'Aufgaben', short: 'Aufgaben', icon: '✅' },
   { to: '/gewohnheiten', label: 'Gewohnheiten', short: 'Routinen', icon: '🔁' },
   { to: '/ziele', label: 'Ziele', short: 'Ziele', icon: '🎯' },
@@ -24,7 +26,7 @@ const navItems = [
 function navClass({ isActive }: { isActive: boolean }) {
   return [
     'flex items-center gap-3 rounded-xl px-3 py-2 text-sm font-medium transition-colors',
-    'max-md:flex-1 max-md:flex-col max-md:gap-0.5 max-md:px-1 max-md:py-1.5 max-md:text-[11px]',
+    'max-md:flex-1 max-md:flex-col max-md:gap-0.5 max-md:px-0.5 max-md:py-1.5 max-md:text-[10px]',
     isActive
       ? 'bg-indigo-50 text-indigo-700 dark:bg-indigo-500/15 dark:text-indigo-300'
       : 'text-slate-600 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800',
@@ -32,6 +34,8 @@ function navClass({ isActive }: { isActive: boolean }) {
 }
 
 export default function App() {
+  // Der Wochenkalender bekommt mehr Breite als die übrigen Seiten
+  const wide = useLocation().pathname.startsWith('/woche')
   return (
     <>
     <ReminderService />
@@ -59,11 +63,12 @@ export default function App() {
         </ul>
       </nav>
 
-      <main className="mx-auto w-full max-w-5xl px-4 pt-6 pb-24 md:px-8 md:pt-10 md:pb-10">
+      <main className={`mx-auto w-full px-4 ${wide ? 'max-w-7xl' : 'max-w-5xl'} pt-6 pb-24 md:px-8 md:pt-10 md:pb-10`}>
         <LegacyImportBanner />
         <Routes>
           <Route path="/" element={<Navigate to="/heute" replace />} />
           <Route path="/heute" element={<Heute />} />
+          <Route path="/woche" element={<Woche />} />
           <Route path="/aufgaben" element={<Aufgaben />} />
           <Route path="/gewohnheiten" element={<Gewohnheiten />} />
           <Route path="/ziele" element={<Ziele />} />
