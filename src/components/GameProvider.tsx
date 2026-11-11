@@ -6,6 +6,8 @@ import { computeBadges, levelInfo, type GameData } from '../lib/game'
 import { GameContext, type GameState } from '../lib/gameContext'
 import { pointsByDay } from '../lib/points'
 import { readStore, writeStore } from '../lib/storage'
+import { visibleForMe } from '../lib/spaces'
+import { useMyEmail } from '../lib/useMe'
 import { useToast } from './Toast'
 
 const SEEN_KEY = 'powerplan.seen' // { level: number, badges: string[] }
@@ -20,12 +22,14 @@ export default function GameProvider({ children }: { children: ReactNode }) {
   const dayLogs = useLiveQuery(() => db.dayLogs.toArray(), [])
   const timeBlocks = useLiveQuery(() => db.timeBlocks.toArray(), [])
   const toast = useToast()
+  const me = useMyEmail()
 
   const loaded = [tasks, habits, habitChecks, focus, goals, dayLogs, timeBlocks].every((x) => x !== undefined)
 
   const state = useMemo<GameState>(() => {
     const data: GameData = {
-      tasks: tasks ?? [],
+      // Nur, was mich betrifft: private Aufgaben + gemeinsame, die mir oder allen zugewiesen sind
+      tasks: (tasks ?? []).filter((t) => visibleForMe(t, me)),
       habits: habits ?? [],
       habitChecks: habitChecks ?? [],
       focus: focus ?? [],
@@ -33,11 +37,11 @@ export default function GameProvider({ children }: { children: ReactNode }) {
       dayLogs: dayLogs ?? [],
       timeBlocks: timeBlocks ?? [],
     }
-    const byDay = pointsByDay({ tasks: data.tasks, habitChecks: data.habitChecks, focus: data.focus, goals: data.goals })
+    const byDay = pointsByDay({ tasks: tasks ?? [], me, habitChecks: data.habitChecks, focus: data.focus, goals: data.goals })
     let total = 0
     for (const p of byDay.values()) total += p
-    return { loaded, data, byDay, total, level: levelInfo(total), badges: computeBadges(data, total, todayISO()) }
-  }, [loaded, tasks, habits, habitChecks, focus, goals, dayLogs, timeBlocks])
+    return { loaded, me, data, byDay, total, level: levelInfo(total), badges: computeBadges(data, total, todayISO()) }
+  }, [loaded, me, tasks, habits, habitChecks, focus, goals, dayLogs, timeBlocks])
 
   // Neue Level und Abzeichen melden (gemerkt pro Browser, damit nichts doppelt kommt).
   useEffect(() => {

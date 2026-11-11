@@ -3,6 +3,8 @@ import type { Badge, GameData, LevelInfo } from './game'
 
 export interface GameState {
   loaded: boolean
+  /** Angemeldete E-Mail */
+  me?: string
   data: GameData
   /** Datum → Punkte */
   byDay: Map<string, number>

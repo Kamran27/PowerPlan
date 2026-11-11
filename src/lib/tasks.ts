@@ -25,6 +25,10 @@ export async function addTask(input: {
   start?: string
   end?: string
   goalId?: string
+  /** Für gemeinsame Bereiche: Bereich, dessen Realm und optional Zuweisung (E-Mail) */
+  spaceId?: string
+  realmId?: string
+  assignee?: string
 }) {
   const title = input.title.trim()
   if (!title) return
@@ -38,6 +42,9 @@ export async function addTask(input: {
       done: false,
       createdAt: new Date().toISOString(),
       goalId: input.goalId,
+      // Nur setzen, wenn vorhanden – ohne realmId landet die Aufgabe automatisch im privaten Bereich
+      ...(input.spaceId ? { spaceId: input.spaceId, realmId: input.realmId } : {}),
+      ...(input.assignee ? { assignee: input.assignee } : {}),
     } as Task)
     if (input.start && dueDate) {
       await db.timeBlocks.add({
@@ -51,10 +58,11 @@ export async function addTask(input: {
   })
 }
 
+/** Abhaken/wieder öffnen. Merkt sich, wer erledigt hat (für Punkte bei gemeinsamen Aufgaben). */
 export async function toggleTask(task: Task) {
   await db.tasks.update(task.id, task.done
-    ? { done: false, doneAt: undefined }
-    : { done: true, doneAt: new Date().toISOString() })
+    ? { done: false, doneAt: undefined, doneBy: undefined }
+    : { done: true, doneAt: new Date().toISOString(), doneBy: db.cloud.currentUser.value?.email })
 }
 
 export async function updateTask(id: string, changes: Partial<Omit<Task, 'id'>>) {
@@ -102,7 +110,7 @@ export async function findTaskBlock(task: Task): Promise<TimeBlock | undefined> 
  */
 export async function saveTaskWithTime(
   task: Task,
-  changes: { title: string; notes?: string; priority: Priority; dueDate?: string; goalId?: string },
+  changes: { title: string; notes?: string; priority: Priority; dueDate?: string; goalId?: string; assignee?: string },
   time: { start: string; end: string },
   block?: TimeBlock,
 ) {

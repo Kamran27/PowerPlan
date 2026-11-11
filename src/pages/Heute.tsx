@@ -14,6 +14,8 @@ import { useGame } from '../lib/gameContext'
 import { compareTasks } from '../lib/tasks'
 import { useDayBlocks, useScheduledTimes } from '../lib/useDayBlocks'
 import { useHabits } from '../lib/useHabits'
+import { visibleForMe } from '../lib/spaces'
+import { useMyEmail } from '../lib/useMe'
 
 function greeting(hour: number) {
   if (hour < 11) return 'Guten Morgen'
@@ -33,12 +35,15 @@ export default function Heute() {
   const dateLabel = now.toLocaleDateString('de-DE', { weekday: 'long', day: 'numeric', month: 'long' })
 
   const allTasks = useLiveQuery(() => db.tasks.toArray(), [])
+  const me = useMyEmail()
   const { habits, doneByHabit, loaded: habitsLoaded } = useHabits()
   const blocks = useDayBlocks(today)
   const scheduled = useScheduledTimes(today)
   const tasksById = useMemo(() => new Map((allTasks ?? []).map((t) => [t.id, t])), [allTasks])
 
-  const list = (allTasks ?? []).filter((t) => isRelevantToday(t, today)).sort(compareTasks)
+  // Meine Sicht: private + gemeinsame Aufgaben, die mir oder allen zugewiesen sind
+  const myTasks = useMemo(() => (allTasks ?? []).filter((t) => visibleForMe(t, me)), [allTasks, me])
+  const list = myTasks.filter((t) => isRelevantToday(t, today)).sort(compareTasks)
   const doneTasks = list.filter((t) => t.done)
   const openTasks = list.filter((t) => !t.done)
   const total = list.length
@@ -46,7 +51,7 @@ export default function Heute() {
 
   const game = useGame()
   const pointsToday = game.byDay.get(today) ?? 0
-  const streak = useMemo(() => streaks(allTasks ?? [], today), [allTasks, today])
+  const streak = useMemo(() => streaks(myTasks, today), [myTasks, today])
   const allDoneToday = total > 0 && openTasks.length === 0
 
   return (

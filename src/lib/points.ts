@@ -2,6 +2,7 @@ import type { FocusItem, Goal, HabitCheck, Task } from '../db'
 import { addDays, localDateOf, todayISO } from './date'
 import { FOCUS_POINTS, GOAL_POINTS } from './goals'
 import { HABIT_POINTS } from './habits'
+import { pointsForMe } from './spaces'
 
 /** Punkte pro erledigter Aufgabe, nach Priorität. */
 export const POINTS_BY_PRIORITY: Record<Task['priority'], number> = { 1: 30, 2: 20, 3: 10 }
@@ -18,6 +19,8 @@ function doneDate(t: Task): string | undefined {
 /** Alles, was Punkte bringt. */
 export interface PointSources {
   tasks: Task[]
+  /** Angemeldete Person: gemeinsame Aufgaben zählen nur, wenn sie von ihr erledigt wurden */
+  me?: string
   habitChecks?: HabitCheck[]
   focus?: FocusItem[]
   goals?: Goal[]
@@ -27,12 +30,12 @@ export interface PointSources {
  * Punkte pro Tag (Datum → Summe):
  * Aufgaben 30/20/10 · Gewohnheit 10 · Wochenfokus 25 · Monatsziel erreicht 100.
  */
-export function pointsByDay({ tasks, habitChecks = [], focus = [], goals = [] }: PointSources): Map<string, number> {
+export function pointsByDay({ tasks, me, habitChecks = [], focus = [], goals = [] }: PointSources): Map<string, number> {
   const map = new Map<string, number>()
   const add = (date: string, pts: number) => map.set(date, (map.get(date) ?? 0) + pts)
   for (const t of tasks) {
     const d = doneDate(t)
-    if (d) add(d, taskPoints(t))
+    if (d && pointsForMe(t, me)) add(d, taskPoints(t))
   }
   for (const c of habitChecks) add(c.date, HABIT_POINTS)
   for (const f of focus) if (f.doneAt) add(localDateOf(f.doneAt), FOCUS_POINTS)
@@ -106,13 +109,13 @@ export interface SourceTotals {
 
 /** Punkte je Quelle im Zeitraum [from, to] (lokale Daten, inklusive). */
 export function pointsBySource(
-  { tasks, habitChecks = [], focus = [], goals = [] }: PointSources,
+  { tasks, me, habitChecks = [], focus = [], goals = [] }: PointSources,
   from: string,
   to: string,
 ): SourceTotals {
   const inRange = (d?: string) => !!d && d >= from && d <= to
   const sum: SourceTotals = { tasks: 0, habits: 0, focus: 0, goals: 0 }
-  for (const t of tasks) if (inRange(doneDate(t))) sum.tasks += taskPoints(t)
+  for (const t of tasks) if (inRange(doneDate(t)) && pointsForMe(t, me)) sum.tasks += taskPoints(t)
   for (const c of habitChecks) if (inRange(c.date)) sum.habits += HABIT_POINTS
   for (const f of focus) if (f.doneAt && inRange(localDateOf(f.doneAt))) sum.focus += FOCUS_POINTS
   for (const g of goals) if (g.achievedAt && inRange(localDateOf(g.achievedAt))) sum.goals += GOAL_POINTS

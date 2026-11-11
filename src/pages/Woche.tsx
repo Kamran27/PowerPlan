@@ -12,6 +12,8 @@ import { compareTasks } from '../lib/tasks'
 import { DAY_START, GRID_HEIGHT, GRID_HOURS, PX_PER_MIN } from '../lib/time'
 import { TASK_DRAG_TYPE } from '../lib/timeblocks'
 import { useNowMinutes } from '../lib/useNow'
+import { visibleForMe } from '../lib/spaces'
+import { useMyEmail } from '../lib/useMe'
 
 function dayLabel(iso: string, opts: Intl.DateTimeFormatOptions) {
   const [y, m, d] = iso.split('-').map(Number)
@@ -39,6 +41,7 @@ export default function Woche() {
 
   const blocks = useLiveQuery(() => db.timeBlocks.where('date').between(monday, sunday, true, true).toArray(), [monday, sunday])
   const allTasks = useLiveQuery(() => db.tasks.toArray(), [])
+  const me = useMyEmail()
   const tasksById = useMemo(() => new Map((allTasks ?? []).map((t) => [t.id, t])), [allTasks])
 
   // Beim Öffnen zur aktuellen Uhrzeit scrollen (eine Stunde Vorlauf).
@@ -55,6 +58,7 @@ export default function Woche() {
     const unplanned: Task[] = []
 
     for (const t of allTasks ?? []) {
+      if (!visibleForMe(t, me)) continue // Partner zugewiesen → nicht in meinem Kalender
       const plannedOnDue = (blocks ?? []).some((b) => b.taskId === t.id && b.date === t.dueDate)
       // „Fällig“-Zeile: Aufgaben mit Fälligkeit in dieser Woche, die an dem Tag (noch) keinen Zeitblock haben.
       // Überfälliges Offenes erscheint am heutigen Tag.
@@ -70,7 +74,7 @@ export default function Woche() {
     return { blocksByDay, dueByDay, unplanned }
     // days hängt nur von monday ab
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [blocks, allTasks, monday, today])
+  }, [blocks, allTasks, monday, today, me])
 
   const loaded = blocks !== undefined && allTasks !== undefined
   const weekTitle = `KW ${isoWeekNumber(monday)} · ${dayLabel(monday, { day: 'numeric', month: 'short' })} – ${dayLabel(sunday, {

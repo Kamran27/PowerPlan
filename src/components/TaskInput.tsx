@@ -1,18 +1,31 @@
 import { useState, type FormEvent } from 'react'
+import type { Space } from '../db'
+import { shortName } from '../lib/spaces'
 import { addTask, PRIORITIES, type Priority } from '../lib/tasks'
+import { useMyEmail } from '../lib/useMe'
 import { timeRangeError } from '../lib/time'
 import TimeRangeInput from './TimeRangeInput'
 
 const fieldClass =
   'rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-sm text-slate-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200'
 
-/** Schnelleingabe für neue Aufgaben: Titel, Priorität, Datum und Uhrzeit (Beginn – Ende). */
-export default function TaskInput({ defaultDueDate }: { defaultDueDate?: string }) {
+interface Props {
+  defaultDueDate?: string
+  /** In einem gemeinsamen Bereich: Aufgaben landen dort (für alle Mitglieder sichtbar) */
+  space?: Space
+  /** Personen, denen man im Bereich zuweisen kann (E-Mails) */
+  people?: string[]
+}
+
+/** Schnelleingabe für neue Aufgaben: Titel, Priorität, Datum und Uhrzeit (Beginn – Ende) – optional mit Zuständigkeit. */
+export default function TaskInput({ defaultDueDate, space, people = [] }: Props) {
   const [title, setTitle] = useState('')
   const [priority, setPriority] = useState<Priority>(2)
   const [dueDate, setDueDate] = useState(defaultDueDate ?? '')
   const [start, setStart] = useState('')
   const [end, setEnd] = useState('')
+  const [assignee, setAssignee] = useState('')
+  const me = useMyEmail()
 
   const timeError = timeRangeError(start, end)
   const canSubmit = !!title.trim() && !timeError
@@ -25,7 +38,14 @@ export default function TaskInput({ defaultDueDate }: { defaultDueDate?: string 
     setTitle('')
     setStart('')
     setEnd('')
-    await addTask({ title, priority, dueDate, start, end })
+    await addTask({
+      title,
+      priority,
+      dueDate,
+      start,
+      end,
+      ...(space ? { spaceId: space.id, realmId: space.realmId, assignee: assignee || undefined } : {}),
+    })
   }
 
   return (
@@ -78,6 +98,16 @@ export default function TaskInput({ defaultDueDate }: { defaultDueDate?: string 
           }}
           className={fieldClass}
         />
+        {space && (
+          <select value={assignee} onChange={(e) => setAssignee(e.target.value)} aria-label="Zuständig" className={fieldClass}>
+            <option value="">👥 Für alle</option>
+            {people.map((p) => (
+              <option key={p} value={p}>
+                👤 {p === me ? 'Ich' : shortName(p)}
+              </option>
+            ))}
+          </select>
+        )}
       </div>
       {(dueDate || start || timeError) && (
         <div className="mt-1.5 flex flex-wrap items-center gap-3 px-1 text-xs">

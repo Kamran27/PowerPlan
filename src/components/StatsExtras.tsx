@@ -93,8 +93,8 @@ export function BadgeGrid() {
 
 /** Woher kommen die Punkte (letzte 30 Tage)? Eine Zeile pro Quelle, direkt beschriftet. */
 export function PointsBySource({ today }: { today: string }) {
-  const { data } = useGame()
-  const s = pointsBySource({ tasks: data.tasks, habitChecks: data.habitChecks, focus: data.focus, goals: data.goals }, addDays(today, -29), today)
+  const { data, me } = useGame()
+  const s = pointsBySource({ tasks: data.tasks, me, habitChecks: data.habitChecks, focus: data.focus, goals: data.goals }, addDays(today, -29), today)
   const rows = [
     { label: 'Aufgaben', icon: '✅', value: s.tasks },
     { label: 'Gewohnheiten', icon: '🔁', value: s.habits },

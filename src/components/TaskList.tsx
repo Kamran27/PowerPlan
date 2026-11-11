@@ -12,6 +12,8 @@ interface Props {
 export default function TaskList({ tasks, empty, scheduled }: Props) {
   // Ziele einmal pro Liste laden (für 🎯-Hinweis und Auswahl im Bearbeiten-Dialog).
   const goals = useLiveQuery(() => db.goals.toArray(), []) ?? []
+  // Gemeinsame Bereiche (für 👥-Hinweis und Zuweisung)
+  const spaces = useLiveQuery(() => db.spaces.toArray(), []) ?? []
 
   if (tasks.length === 0) {
     return <p className="px-3 py-8 text-center text-sm text-slate-500 dark:text-slate-400">{empty}</p>
@@ -19,7 +21,7 @@ export default function TaskList({ tasks, empty, scheduled }: Props) {
   return (
     <ul className="grid gap-0.5">
       {tasks.map((t) => (
-        <TaskItem key={t.id} task={t} scheduledAt={scheduled?.get(t.id)} goals={goals} />
+        <TaskItem key={t.id} task={t} scheduledAt={scheduled?.get(t.id)} goals={goals} spaces={spaces} />
       ))}
     </ul>
   )

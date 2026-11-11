@@ -1,5 +1,5 @@
 import Dexie, { type EntityTable, type Table } from 'dexie'
-import dexieCloud from 'dexie-cloud-addon'
+import dexieCloud, { type DBRealm, type DBRealmMember, type DBRealmRole } from 'dexie-cloud-addon'
 
 /*
  * Datenbank mit Dexie Cloud: Alles wird lokal gespeichert (offline nutzbar) und automatisch
@@ -24,6 +24,47 @@ export interface Task {
   createdAt: string
   /** Verknüpftes Monatsziel (ab M5). */
   goalId?: string
+  /** Gemeinsamer Bereich, zu dem die Aufgabe gehört (sonst privat). */
+  spaceId?: string
+  /** Dexie Cloud: Bereich (Realm) = wer die Aufgabe sehen darf. Fehlt = privat. */
+  realmId?: string
+  /** Zugewiesen an (E-Mail). Fehlt = für alle im Bereich. */
+  assignee?: string
+  /** Erledigt von (E-Mail) – wichtig für Punkte bei gemeinsamen Aufgaben. */
+  doneBy?: string
+}
+
+/** Ein gemeinsamer Bereich, z. B. „Haushalt“ – geteilt über einen eigenen Realm. */
+export interface Space {
+  id: string
+  title: string
+  emoji?: string
+  realmId: string
+  createdByEmail?: string
+  createdAt: string
+}
+
+/** Eine Einkaufsliste in einem Bereich. */
+export interface ShoppingList {
+  id: string
+  spaceId: string
+  realmId: string
+  title: string
+  createdAt: string
+}
+
+/** Ein Artikel auf einer Einkaufsliste. */
+export interface ShoppingItem {
+  id: string
+  listId: string
+  spaceId: string
+  realmId: string
+  name: string
+  /** Menge als Freitext, z. B. „2“, „500 g“, „1 Pack“ */
+  qty?: string
+  done: boolean
+  doneAt?: string
+  createdAt: string
 }
 
 /** Ein Zeitblock im Tagesplan (ab M2). Zeiten als "HH:MM". */
@@ -95,6 +136,13 @@ export const db = new Dexie('powerplan-cloud', { addons: [dexieCloud] }) as Dexi
   habitChecks: Table<HabitCheck, [string, string]>
   goals: EntityTable<Goal, 'id'>
   weekFocus: EntityTable<FocusItem, 'id'>
+  // Teilen (Dexie Cloud Zugriffskontrolle)
+  realms: Table<DBRealm, string>
+  members: Table<DBRealmMember, string>
+  roles: Table<DBRealmRole, [string, string]>
+  spaces: EntityTable<Space, 'id'>
+  shoppingLists: EntityTable<ShoppingList, 'id'>
+  shoppingItems: EntityTable<ShoppingItem, 'id'>
 }
 
 // „@id“ = Dexie Cloud vergibt eine weltweit eindeutige Text-ID. Danach: Felder, nach denen gesucht wird.
@@ -106,6 +154,17 @@ db.version(1).stores({
   habitChecks: '[habitId+date], habitId, date',
   goals: '@id, month',
   weekFocus: '@id, week, goalId',
+})
+
+// Version 2: Teilen – gemeinsame Bereiche, Mitglieder, Einkaufslisten; Aufgaben mit Bereich
+db.version(2).stores({
+  tasks: '@id, done, dueDate, priority, createdAt, goalId, spaceId',
+  realms: '@realmId',
+  members: '@id, realmId, [email+realmId]',
+  roles: '[realmId+name]',
+  spaces: '@id',
+  shoppingLists: '@id, spaceId',
+  shoppingItems: '@id, listId, spaceId',
 })
 
 db.cloud.configure({

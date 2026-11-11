@@ -1,5 +1,6 @@
 import { useState, type FormEvent } from 'react'
-import type { Goal, Task, TimeBlock } from '../db'
+import { useLiveQuery } from 'dexie-react-hooks'
+import { db, type Goal, type Space, type Task, type TimeBlock } from '../db'
 import { monthLabel, selectableGoals } from '../lib/goals'
 import { describeDue } from '../lib/date'
 import {
@@ -12,6 +13,8 @@ import {
   type Priority,
 } from '../lib/tasks'
 import { timeRangeError } from '../lib/time'
+import { assignableEmails, shortName } from '../lib/spaces'
+import { useMyEmail } from '../lib/useMe'
 import { scheduleTaskToday, TASK_DRAG_TYPE } from '../lib/timeblocks'
 import TimeRangeInput from './TimeRangeInput'
 import { useToggleTask } from './useToggleTask'
@@ -33,9 +36,11 @@ interface Props {
   scheduledAt?: string
   /** Alle Ziele (für 🎯-Hinweis und Auswahl beim Bearbeiten). */
   goals?: Goal[]
+  /** Gemeinsame Bereiche (für 👥-Hinweis und Zuweisung) */
+  spaces?: Space[]
 }
 
-export default function TaskItem({ task, scheduledAt, goals = [] }: Props) {
+export default function TaskItem({ task, scheduledAt, goals = [], spaces = [] }: Props) {
   const [editing, setEditing] = useState(false)
   const [editBlock, setEditBlock] = useState<TimeBlock | undefined>()
   const toggle = useToggleTask()
@@ -58,7 +63,8 @@ export default function TaskItem({ task, scheduledAt, goals = [] }: Props) {
     else toast(`Eingeplant um ${result.start} Uhr`, { label: 'Rückgängig', onClick: result.undo })
   }
 
-  if (editing) return <TaskEditor task={task} block={editBlock} goals={goals} onClose={() => setEditing(false)} />
+  const space = task.spaceId ? spaces.find((s) => s.id === task.spaceId) : undefined
+  if (editing) return <TaskEditor task={task} block={editBlock} goals={goals} space={space} onClose={() => setEditing(false)} />
 
   const prio = priorityInfo(task.priority)
   const due = task.dueDate ? describeDue(task.dueDate) : null
@@ -87,7 +93,7 @@ export default function TaskItem({ task, scheduledAt, goals = [] }: Props) {
         {task.notes && !task.done && (
           <span className="mt-0.5 block truncate text-sm text-slate-500 dark:text-slate-400">{task.notes}</span>
         )}
-        {(due || task.priority !== 3 || scheduledAt || goal) && !task.done && (
+        {(due || task.priority !== 3 || scheduledAt || goal || space) && !task.done && (
           <span className="mt-1 flex items-center gap-3 text-xs">
             {task.priority !== 3 && (
               <span className="flex items-center gap-1 text-slate-500 dark:text-slate-400">
@@ -98,6 +104,13 @@ export default function TaskItem({ task, scheduledAt, goals = [] }: Props) {
             {due && <span className={`font-medium ${dueColors[due.state]}`}>{due.label}</span>}
             {scheduledAt && <span className="text-emerald-600 dark:text-emerald-400">🕒 {scheduledAt} Uhr</span>}
             {goal && <span className="truncate text-slate-500 dark:text-slate-400">🎯 {goal.title}</span>}
+            {space && (
+              <span className="truncate text-sky-700 dark:text-sky-300">
+                👥 {space.emoji ? `${space.emoji} ` : ''}
+                {space.title}
+                {task.assignee ? ` → ${shortName(task.assignee)}` : ' · alle'}
+              </span>
+            )}
           </span>
         )}
       </button>
@@ -122,7 +135,19 @@ export default function TaskItem({ task, scheduledAt, goals = [] }: Props) {
   )
 }
 
-function TaskEditor({ task, block, goals, onClose }: { task: Task; block?: TimeBlock; goals: Goal[]; onClose: () => void }) {
+function TaskEditor({
+  task,
+  block,
+  goals,
+  space,
+  onClose,
+}: {
+  task: Task
+  block?: TimeBlock
+  goals: Goal[]
+  space?: Space
+  onClose: () => void
+}) {
   const [title, setTitle] = useState(task.title)
   const [notes, setNotes] = useState(task.notes ?? '')
   const [priority, setPriority] = useState<Priority>(task.priority)
@@ -130,6 +155,11 @@ function TaskEditor({ task, block, goals, onClose }: { task: Task; block?: TimeB
   const [start, setStart] = useState(block?.start ?? '')
   const [end, setEnd] = useState(block?.end ?? '')
   const [goalId, setGoalId] = useState<string | undefined>(task.goalId)
+  const [assignee, setAssignee] = useState(task.assignee ?? '')
+  const me = useMyEmail()
+  // Mitglieder des Bereichs (nur bei gemeinsamen Aufgaben)
+  const members = useLiveQuery(() => (space ? db.members.where('realmId').equals(space.realmId).toArray() : []), [space?.realmId]) ?? []
+  const people = space ? assignableEmails(space, members.map((m) => m.email)) : []
 
   const timeError = timeRangeError(start, end)
   const canSave = !!title.trim() && !timeError
@@ -139,7 +169,14 @@ function TaskEditor({ task, block, goals, onClose }: { task: Task; block?: TimeB
     if (!canSave) return
     await saveTaskWithTime(
       task,
-      { title: title.trim(), notes: notes.trim() || undefined, priority, dueDate: dueDate || undefined, goalId },
+      {
+        title: title.trim(),
+        notes: notes.trim() || undefined,
+        priority,
+        dueDate: dueDate || undefined,
+        goalId,
+        ...(space ? { assignee: assignee || undefined } : {}),
+      },
       { start, end },
       block,
     )
@@ -206,6 +243,21 @@ function TaskEditor({ task, block, goals, onClose }: { task: Task; block?: TimeB
               </option>
             ))}
           </select>
+          {space && (
+            <select
+              value={assignee}
+              onChange={(e) => setAssignee(e.target.value)}
+              aria-label="Zuständig"
+              className={`${fieldClass} max-w-56`}
+            >
+              <option value="">👥 Für alle</option>
+              {people.map((p) => (
+                <option key={p} value={p}>
+                  👤 {p === me ? 'Ich' : shortName(p)}
+                </option>
+              ))}
+            </select>
+          )}
         </div>
         <div className="flex flex-wrap items-center gap-3 text-xs">
           {start && (

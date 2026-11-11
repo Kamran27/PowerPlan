@@ -5,6 +5,8 @@ import { BadgeGrid, HabitRates, LevelCard, PointsBySource } from '../components/
 import { db } from '../db'
 import { addDays, todayISO } from '../lib/date'
 import { moodInfo } from '../lib/moods'
+import { visibleForMe } from '../lib/spaces'
+import { useMyEmail } from '../lib/useMe'
 import { dayStatus, streaks, weekStart, type DayStatus } from '../lib/points'
 import { useGame } from '../lib/gameContext'
 
@@ -24,7 +26,9 @@ function formatDay(iso: string, opts: Intl.DateTimeFormatOptions) {
 }
 
 export default function Statistik() {
-  const tasks = useLiveQuery(() => db.tasks.toArray(), [])
+  const me = useMyEmail()
+  const allTasks = useLiveQuery(() => db.tasks.toArray(), [])
+  const tasks = useMemo(() => allTasks?.filter((t) => visibleForMe(t, me)), [allTasks, me])
   const game = useGame()
   const byDay = game.byDay
   const logs = useLiveQuery(() => db.dayLogs.orderBy('date').reverse().limit(10).toArray(), [])

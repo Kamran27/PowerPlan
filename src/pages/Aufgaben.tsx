@@ -1,11 +1,13 @@
 import { useLiveQuery } from 'dexie-react-hooks'
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import PageHeader from '../components/PageHeader'
 import TaskInput from '../components/TaskInput'
 import TaskList from '../components/TaskList'
 import { db, type Task } from '../db'
 import { todayISO } from '../lib/date'
 import { compareTasks } from '../lib/tasks'
+import { visibleForMe } from '../lib/spaces'
+import { useMyEmail } from '../lib/useMe'
 import { useScheduledTimes } from '../lib/useDayBlocks'
 
 type Filter = 'offen' | 'heute' | 'erledigt' | 'alle'
@@ -19,7 +21,9 @@ const FILTERS: { value: Filter; label: string; empty: string; test: (t: Task, to
 
 export default function Aufgaben() {
   const [filter, setFilter] = useState<Filter>('offen')
-  const tasks = useLiveQuery(() => db.tasks.toArray(), [])
+  const me = useMyEmail()
+  const allTasks = useLiveQuery(() => db.tasks.toArray(), [])
+  const tasks = useMemo(() => allTasks?.filter((t) => visibleForMe(t, me)), [allTasks, me])
   const today = todayISO()
   const scheduled = useScheduledTimes(today)
 
