@@ -12,8 +12,8 @@ export function useDayBlocks(date: string) {
  */
 export function useScheduledTimes(fromDate: string) {
   const blocks = useLiveQuery(() => db.timeBlocks.where('date').aboveOrEqual(fromDate).toArray(), [fromDate])
-  const scheduled = new Map<number, string>()
-  const firstKey = new Map<number, string>()
+  const scheduled = new Map<string, string>()
+  const firstKey = new Map<string, string>()
   for (const b of blocks ?? []) {
     if (b.taskId === undefined) continue
     const key = `${b.date} ${b.start}`

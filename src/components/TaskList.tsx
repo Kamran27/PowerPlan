@@ -6,7 +6,7 @@ interface Props {
   tasks: Task[]
   empty: string
   /** Aufgaben-ID → geplante Zeitspanne im Tagesplan. */
-  scheduled?: Map<number, string>
+  scheduled?: Map<string, string>
 }
 
 export default function TaskList({ tasks, empty, scheduled }: Props) {

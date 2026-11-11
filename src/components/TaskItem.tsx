@@ -129,7 +129,7 @@ function TaskEditor({ task, block, goals, onClose }: { task: Task; block?: TimeB
   const [dueDate, setDueDate] = useState(task.dueDate ?? '')
   const [start, setStart] = useState(block?.start ?? '')
   const [end, setEnd] = useState(block?.end ?? '')
-  const [goalId, setGoalId] = useState<number | undefined>(task.goalId)
+  const [goalId, setGoalId] = useState<string | undefined>(task.goalId)
 
   const timeError = timeRangeError(start, end)
   const canSave = !!title.trim() && !timeError
@@ -195,7 +195,7 @@ function TaskEditor({ task, block, goals, onClose }: { task: Task; block?: TimeB
           />
           <select
             value={goalId ?? ''}
-            onChange={(e) => setGoalId(e.target.value ? Number(e.target.value) : undefined)}
+            onChange={(e) => setGoalId(e.target.value || undefined)}
             aria-label="Monatsziel"
             className={`${fieldClass} max-w-56`}
           >

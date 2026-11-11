@@ -24,7 +24,7 @@ export async function addTask(input: {
   dueDate?: string
   start?: string
   end?: string
-  goalId?: number
+  goalId?: string
 }) {
   const title = input.title.trim()
   if (!title) return
@@ -57,11 +57,11 @@ export async function toggleTask(task: Task) {
     : { done: true, doneAt: new Date().toISOString() })
 }
 
-export async function updateTask(id: number, changes: Partial<Omit<Task, 'id'>>) {
+export async function updateTask(id: string, changes: Partial<Omit<Task, 'id'>>) {
   await db.tasks.update(id, changes)
 }
 
-export async function deleteTask(id: number) {
+export async function deleteTask(id: string) {
   await db.tasks.delete(id)
 }
 
@@ -102,7 +102,7 @@ export async function findTaskBlock(task: Task): Promise<TimeBlock | undefined> 
  */
 export async function saveTaskWithTime(
   task: Task,
-  changes: { title: string; notes?: string; priority: Priority; dueDate?: string; goalId?: number },
+  changes: { title: string; notes?: string; priority: Priority; dueDate?: string; goalId?: string },
   time: { start: string; end: string },
   block?: TimeBlock,
 ) {

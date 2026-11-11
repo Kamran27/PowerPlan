@@ -113,7 +113,7 @@ function FocusSlot({
       {item && (
         <select
           value={item.goalId ?? ''}
-          onChange={(e) => setFocusGoal(item, e.target.value ? Number(e.target.value) : undefined)}
+          onChange={(e) => setFocusGoal(item, e.target.value || undefined)}
           aria-label="Mit Monatsziel verknüpfen"
           className="max-w-48 rounded-lg border border-slate-200 bg-white px-2 py-1 text-xs dark:border-slate-700 dark:bg-slate-800"
         >

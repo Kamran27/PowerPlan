@@ -1,8 +1,12 @@
 import { db, type DayLog, type FocusItem, type Goal, type Habit, type HabitCheck, type Task, type TimeBlock } from '../db'
+import { importLegacyData, type LegacyData } from './legacy'
 
 const FORMAT = 'powerplan-backup'
-/** 1 = Aufgaben, Zeitblöcke, Tagesbilanzen · 2 = + Gewohnheiten (M4) · 3 = + Ziele und Wochenfokus (M5) */
-const VERSION = 3
+/**
+ * 1 = Aufgaben, Zeitblöcke, Tagesbilanzen · 2 = + Gewohnheiten · 3 = + Ziele und Wochenfokus
+ * 4 = Cloud-Version: IDs sind Texte
+ */
+const VERSION = 4
 
 interface Backup {
   format: typeof FORMAT
@@ -40,7 +44,7 @@ export async function exportBackup() {
   URL.revokeObjectURL(url)
 }
 
-/** Liest und prüft eine Backup-Datei (Version 1–3). Wirft einen Fehler mit deutscher Meldung, wenn ungültig. */
+/** Liest und prüft eine Backup-Datei (Version 1–4). Wirft einen Fehler mit deutscher Meldung, wenn ungültig. */
 export async function readBackup(file: File): Promise<Backup> {
   let data: unknown
   try {
@@ -58,29 +62,32 @@ export async function readBackup(file: File): Promise<Backup> {
   const list = <T,>(v: T[] | undefined): T[] => (Array.isArray(v) ? v : [])
   return {
     format: FORMAT,
-    version: b.version ?? VERSION,
+    version: b.version ?? 1,
     exportedAt: b.exportedAt ?? '',
     tasks: b.tasks,
     timeBlocks: list(b.timeBlocks),
     dayLogs: list(b.dayLogs),
-    habits: list(b.habits), // fehlt in Version-1-Sicherungen
+    habits: list(b.habits),
     habitChecks: list(b.habitChecks),
-    goals: list(b.goals), // ab Version 3
+    goals: list(b.goals),
     weekFocus: list(b.weekFocus),
   }
 }
 
-/** Ersetzt alle vorhandenen Daten durch die Sicherung (alles oder nichts). */
+/**
+ * Übernimmt eine Sicherung in die (Cloud-)Datenbank. Es wird nichts gelöscht:
+ * - Version 4: Einträge werden mit ihren IDs zurückgeschrieben (gleiche ID = aktualisieren)
+ * - Version 1–3 (vor der Cloud): Einträge bekommen neue IDs, Verknüpfungen werden umgeschrieben
+ */
 export async function restoreBackup(b: Backup) {
-  const tables = [db.tasks, db.timeBlocks, db.dayLogs, db.habits, db.habitChecks, db.goals, db.weekFocus]
-  await db.transaction('rw', tables, async () => {
-    await Promise.all(tables.map((t) => t.clear()))
-    await db.tasks.bulkAdd(b.tasks)
-    await db.timeBlocks.bulkAdd(b.timeBlocks)
-    await db.dayLogs.bulkAdd(b.dayLogs)
-    await db.habits.bulkAdd(b.habits)
-    await db.habitChecks.bulkAdd(b.habitChecks)
-    await db.goals.bulkAdd(b.goals)
-    await db.weekFocus.bulkAdd(b.weekFocus)
+  if (b.version < 4) return importLegacyData(b as unknown as LegacyData)
+  await db.transaction('rw', [db.tasks, db.timeBlocks, db.dayLogs, db.habits, db.habitChecks, db.goals, db.weekFocus], async () => {
+    await db.tasks.bulkPut(b.tasks)
+    await db.timeBlocks.bulkPut(b.timeBlocks)
+    await db.dayLogs.bulkPut(b.dayLogs)
+    await db.habits.bulkPut(b.habits)
+    await db.habitChecks.bulkPut(b.habitChecks)
+    await db.goals.bulkPut(b.goals)
+    await db.weekFocus.bulkPut(b.weekFocus)
   })
 }

@@ -5,7 +5,7 @@ import { useToggleHabit } from './useToggleHabit'
 
 interface Props {
   habits: Habit[]
-  doneByHabit: Map<number, Set<string>>
+  doneByHabit: Map<string, Set<string>>
   today: string
 }
 

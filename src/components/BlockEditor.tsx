@@ -4,7 +4,7 @@ import { toMinutes } from '../lib/time'
 import { addBlock, deleteBlock, restoreBlock, updateBlock } from '../lib/timeblocks'
 import { useToast } from './Toast'
 
-export type BlockDraft = Omit<TimeBlock, 'id'> & { id?: number }
+export type BlockDraft = Omit<TimeBlock, 'id'> & { id?: string }
 
 const fieldClass =
   'w-full rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-sm dark:border-slate-700 dark:bg-slate-800'

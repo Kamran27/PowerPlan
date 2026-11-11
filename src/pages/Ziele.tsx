@@ -24,7 +24,7 @@ export default function Ziele() {
 
   const week = addDays(weekStart(today), weekOffset * 7)
   const goals = useLiveQuery(() => db.goals.where('month').equals(month).toArray(), [month])
-  const tasks = useLiveQuery(() => db.tasks.where('goalId').above(0).toArray(), [])
+  const tasks = useLiveQuery(() => db.tasks.filter((t) => !!t.goalId).toArray(), [])
 
   async function submitGoal(e: FormEvent) {
     e.preventDefault()

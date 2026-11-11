@@ -6,15 +6,15 @@ import { updateTask } from './tasks'
 /** MIME-Typ für Drag & Drop einer Aufgabe auf die Zeitleiste. */
 export const TASK_DRAG_TYPE = 'application/x-powerplan-task'
 
-export async function addBlock(block: Omit<TimeBlock, 'id'>): Promise<number> {
+export async function addBlock(block: Omit<TimeBlock, 'id'>): Promise<string> {
   return db.timeBlocks.add(block as TimeBlock)
 }
 
-export async function updateBlock(id: number, changes: Partial<Omit<TimeBlock, 'id'>>) {
+export async function updateBlock(id: string, changes: Partial<Omit<TimeBlock, 'id'>>) {
   await db.timeBlocks.update(id, changes)
 }
 
-export async function deleteBlock(id: number) {
+export async function deleteBlock(id: string) {
   await db.timeBlocks.delete(id)
 }
 

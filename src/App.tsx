@@ -6,6 +6,9 @@ import Gewohnheiten from './pages/Gewohnheiten'
 import Ziele from './pages/Ziele'
 import LevelBadge from './components/LevelBadge'
 import ReminderService from './components/ReminderService'
+import LoginDialog from './components/LoginDialog'
+import CloudStatus from './components/CloudStatus'
+import LegacyImportBanner from './components/LegacyImportBanner'
 import Einstellungen from './pages/Einstellungen'
 
 /** label = Seitenleiste (Desktop), short = Leiste unten (Handy, wenig Platz) */
@@ -32,12 +35,14 @@ export default function App() {
   return (
     <>
     <ReminderService />
+    <LoginDialog />
     <div className="min-h-dvh bg-slate-50 text-slate-900 dark:bg-slate-950 dark:text-slate-100 md:flex">
       {/* Seitenleiste (Desktop) / Leiste unten (Handy) */}
       <nav className="fixed inset-x-0 bottom-0 z-10 border-t border-slate-200 bg-white/90 backdrop-blur dark:border-slate-800 dark:bg-slate-900/90 md:static md:w-56 md:shrink-0 md:border-t-0 md:border-r">
         <div className="hidden px-5 py-6 md:block">
           <span className="text-lg font-bold tracking-tight">⚡ PowerPlan</span>
           <LevelBadge className="-mx-3 mt-3" />
+          <CloudStatus />
         </div>
         <ul className="flex gap-1 p-2 md:flex-col md:px-3">
           {navItems.map((item) => (
@@ -55,6 +60,7 @@ export default function App() {
       </nav>
 
       <main className="mx-auto w-full max-w-5xl px-4 pt-6 pb-24 md:px-8 md:pt-10 md:pb-10">
+        <LegacyImportBanner />
         <Routes>
           <Route path="/" element={<Navigate to="/heute" replace />} />
           <Route path="/heute" element={<Heute />} />

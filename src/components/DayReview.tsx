@@ -15,7 +15,8 @@ interface Props {
 
 /** Abend-Tagesbilanz: Zahlen des Tages, Stimmung (1–5) und kurze Reflexion. */
 export default function DayReview({ date, points, doneTasks, openTasks }: Props) {
-  const log = useLiveQuery(() => db.dayLogs.get(date), [date])
+  // Bilanz des Tages (Suche über das Datum; die ID vergibt die Cloud)
+  const log = useLiveQuery(() => db.dayLogs.where('date').equals(date).first(), [date])
   const [expanded, setExpanded] = useState(false)
   const [mood, setMood] = useState<DayLog['mood']>()
   const [reflection, setReflection] = useState('')
@@ -41,7 +42,9 @@ export default function DayReview({ date, points, doneTasks, openTasks }: Props)
   }
 
   async function save() {
-    await db.dayLogs.put({ date, mood, reflection: reflection.trim() || undefined, savedAt: new Date().toISOString() })
+    const data = { date, mood, reflection: reflection.trim() || undefined, savedAt: new Date().toISOString() }
+    if (log) await db.dayLogs.update(log.id, data)
+    else await db.dayLogs.add(data as DayLog)
     setSavedFlash(true)
     window.setTimeout(() => setSavedFlash(false), 2000)
   }

@@ -2,6 +2,7 @@ import { useRef, useState } from 'react'
 import InstallAppCard from '../components/InstallAppCard'
 import PageHeader from '../components/PageHeader'
 import ReminderSettingsCard from '../components/ReminderSettingsCard'
+import AccountCard from '../components/AccountCard'
 import { useToast } from '../components/Toast'
 import { exportBackup, readBackup, restoreBackup } from '../lib/backup'
 
@@ -40,10 +41,11 @@ export default function Einstellungen() {
   return (
     <div className="max-w-3xl">
       <PageHeader title="Einstellungen" />
+      <AccountCard />
       <section className="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-slate-200 dark:bg-slate-900 dark:ring-slate-800">
         <h2 className="font-semibold">Datensicherung</h2>
         <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-          Deine Daten liegen nur in diesem Browser. Exportiere regelmäßig eine Sicherung, z. B. in dein iCloud Drive.
+          Deine Daten werden automatisch mit der Cloud abgeglichen. Eine Sicherungsdatei ist trotzdem ein gutes Extra-Backup, z. B. in deinem iCloud Drive.
         </p>
         <div className="mt-4 flex flex-wrap gap-2">
           <button
@@ -76,10 +78,10 @@ export default function Einstellungen() {
               <strong>{pending.exportedAt ? new Date(pending.exportedAt).toLocaleString('de-DE') : 'unbekannten Datum'}</strong>{' '}
               mit <strong>{pending.tasks.length} Aufgaben</strong> und <strong>{pending.habits.length} Gewohnheiten</strong>.
             </p>
-            <p className="mt-1">Alle aktuellen Daten in diesem Browser werden dadurch <strong>ersetzt</strong>.</p>
+            <p className="mt-1">Die Einträge werden <strong>hinzugefügt</strong> (bzw. gleiche Einträge aktualisiert) – es wird nichts gelöscht. Sie erscheinen danach auf allen deinen Geräten.</p>
             <div className="mt-3 flex gap-2">
               <button onClick={confirmImport} className="rounded-lg bg-amber-600 px-3 py-1.5 font-semibold text-white hover:bg-amber-500">
-                Ja, ersetzen
+                Ja, übernehmen
               </button>
               <button onClick={() => setPending(null)} className="rounded-lg px-3 py-1.5 hover:bg-amber-100 dark:hover:bg-amber-500/20">
                 Abbrechen

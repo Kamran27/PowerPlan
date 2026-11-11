@@ -11,7 +11,7 @@ const HOURS = Array.from({ length: (DAY_END - DAY_START) / 60 }, (_, i) => DAY_S
 const HEIGHT = (DAY_END - DAY_START) * PX_PER_MIN
 
 /** Zeitleiste eines Tages mit Zeitblöcken, „Jetzt“-Linie und Drop-Ziel für Aufgaben. */
-export default function DayTimeline({ date, blocks, tasks }: { date: string; blocks: TimeBlock[]; tasks: Map<number, Task> }) {
+export default function DayTimeline({ date, blocks, tasks }: { date: string; blocks: TimeBlock[]; tasks: Map<string, Task> }) {
   const [draft, setDraft] = useState<BlockDraft | null>(null)
   const [dropAt, setDropAt] = useState<number | null>(null)
   const scrollRef = useRef<HTMLDivElement>(null)
@@ -60,7 +60,7 @@ export default function DayTimeline({ date, blocks, tasks }: { date: string; blo
     e.preventDefault()
     const start = dropAt ?? startAt(e.clientY, 15)
     setDropAt(null)
-    const task = tasks.get(Number(e.dataTransfer.getData(TASK_DRAG_TYPE)))
+    const task = tasks.get(e.dataTransfer.getData(TASK_DRAG_TYPE))
     if (!task) return
     await addBlock({ date, start: fromMinutes(start), end: fromMinutes(start + DEFAULT_DURATION), title: task.title, taskId: task.id })
   }

@@ -35,7 +35,7 @@ export async function addHabit(input: { name: string; emoji?: string; days: numb
   await db.habits.add({ name, emoji: input.emoji?.trim() || undefined, days: [...input.days].sort(), createdAt: todayISO() } as Habit)
 }
 
-export async function updateHabit(id: number, changes: Partial<Omit<Habit, 'id'>>) {
+export async function updateHabit(id: string, changes: Partial<Omit<Habit, 'id'>>) {
   await db.habits.update(id, changes)
 }
 
@@ -55,7 +55,7 @@ export async function deleteHabit(habit: Habit) {
 }
 
 /** Haken setzen oder entfernen. Gibt true zurück, wenn jetzt erledigt. */
-export async function toggleHabit(habitId: number, date: string): Promise<boolean> {
+export async function toggleHabit(habitId: string, date: string): Promise<boolean> {
   const existing = await db.habitChecks.get([habitId, date])
   if (existing) {
     await db.habitChecks.delete([habitId, date])
@@ -66,8 +66,8 @@ export async function toggleHabit(habitId: number, date: string): Promise<boolea
 }
 
 /** Gewohnheit → Menge der erledigten Tage. */
-export function checksByHabit(checks: HabitCheck[]): Map<number, Set<string>> {
-  const map = new Map<number, Set<string>>()
+export function checksByHabit(checks: HabitCheck[]): Map<string, Set<string>> {
+  const map = new Map<string, Set<string>>()
   for (const c of checks) {
     if (!map.has(c.habitId)) map.set(c.habitId, new Set())
     map.get(c.habitId)!.add(c.date)

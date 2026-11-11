@@ -32,7 +32,7 @@ export async function addGoal(title: string, month: string) {
   await db.goals.add({ title: t, month, createdAt: new Date().toISOString() } as Goal)
 }
 
-export async function updateGoal(id: number, changes: Partial<Omit<Goal, 'id'>>) {
+export async function updateGoal(id: string, changes: Partial<Omit<Goal, 'id'>>) {
   await db.goals.update(id, changes)
 }
 
@@ -64,7 +64,7 @@ export async function deleteGoal(goal: Goal) {
 }
 
 /** Fortschritt eines Ziels aus seinen verknüpften Aufgaben. */
-export function goalProgress(goalId: number, tasks: Task[]) {
+export function goalProgress(goalId: string, tasks: Task[]) {
   const linked = tasks.filter((t) => t.goalId === goalId)
   const done = linked.filter((t) => t.done).length
   return { linked, done, total: linked.length, pct: linked.length ? Math.round((done / linked.length) * 100) : 0 }
@@ -80,7 +80,7 @@ export async function saveFocus(week: string, slot: number, title: string, exist
   if (t) await db.weekFocus.add({ week, slot, title: t } as FocusItem)
 }
 
-export async function setFocusGoal(item: FocusItem, goalId?: number) {
+export async function setFocusGoal(item: FocusItem, goalId?: string) {
   await db.weekFocus.update(item.id, { goalId })
 }
 
@@ -91,7 +91,7 @@ export async function toggleFocus(item: FocusItem): Promise<boolean> {
 }
 
 /** Ziele, die zur Auswahl stehen: aktueller und kommender Monat sowie das bereits verknüpfte. */
-export function selectableGoals(goals: Goal[], currentId?: number, month = monthOf(todayISO())) {
+export function selectableGoals(goals: Goal[], currentId?: string, month = monthOf(todayISO())) {
   return goals
     .filter((g) => g.id === currentId || (!g.achievedAt && g.month >= addMonths(month, -1) && g.month <= addMonths(month, 1)))
     .sort((a, b) => a.month.localeCompare(b.month) || a.title.localeCompare(b.title))
