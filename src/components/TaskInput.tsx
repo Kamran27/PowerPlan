@@ -4,6 +4,8 @@ import { shortName } from '../lib/spaces'
 import { addTask, PRIORITIES, type Priority } from '../lib/tasks'
 import { useMyEmail } from '../lib/useMe'
 import { timeRangeError } from '../lib/time'
+import type { Repeat } from '../lib/repeat'
+import RepeatSelect from './RepeatSelect'
 import TimeRangeInput from './TimeRangeInput'
 
 const fieldClass =
@@ -25,6 +27,7 @@ export default function TaskInput({ defaultDueDate, space, people = [] }: Props)
   const [start, setStart] = useState('')
   const [end, setEnd] = useState('')
   const [assignee, setAssignee] = useState('')
+  const [repeat, setRepeat] = useState<Repeat | ''>('')
   const me = useMyEmail()
 
   const timeError = timeRangeError(start, end)
@@ -38,12 +41,14 @@ export default function TaskInput({ defaultDueDate, space, people = [] }: Props)
     setTitle('')
     setStart('')
     setEnd('')
+    setRepeat('')
     await addTask({
       title,
       priority,
       dueDate,
       start,
       end,
+      repeat: repeat || undefined,
       ...(space ? { spaceId: space.id, realmId: space.realmId, assignee: assignee || undefined } : {}),
     })
   }
@@ -98,6 +103,7 @@ export default function TaskInput({ defaultDueDate, space, people = [] }: Props)
           }}
           className={fieldClass}
         />
+        <RepeatSelect value={repeat} onChange={setRepeat} className={fieldClass} />
         {space && (
           <select value={assignee} onChange={(e) => setAssignee(e.target.value)} aria-label="Zuständig" className={fieldClass}>
             <option value="">👥 Für alle</option>
@@ -109,7 +115,7 @@ export default function TaskInput({ defaultDueDate, space, people = [] }: Props)
           </select>
         )}
       </div>
-      {(dueDate || start || timeError) && (
+      {(dueDate || start || repeat || timeError) && (
         <div className="mt-1.5 flex flex-wrap items-center gap-3 px-1 text-xs">
           {dueDate && (
             <button type="button" onClick={() => setDueDate('')} className="text-slate-500 hover:underline">
@@ -128,7 +134,7 @@ export default function TaskInput({ defaultDueDate, space, people = [] }: Props)
               Keine Zeit
             </button>
           )}
-          {start && !dueDate && !timeError && <span className="text-slate-500 dark:text-slate-400">→ wird für heute geplant</span>}
+          {(start || repeat) && !dueDate && !timeError && <span className="text-slate-500 dark:text-slate-400">→ wird für heute geplant</span>}
           {timeError && <span className="text-rose-600 dark:text-rose-400">{timeError}</span>}
         </div>
       )}

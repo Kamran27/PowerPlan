@@ -2,10 +2,11 @@ import { useState, type FormEvent } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db, type Goal, type Space, type Task, type TimeBlock } from '../db'
 import { monthLabel, selectableGoals } from '../lib/goals'
-import { describeDue } from '../lib/date'
+import { addDays, describeDue, todayISO } from '../lib/date'
 import {
   deleteTask,
   findTaskBlock,
+  postponeTasks,
   priorityInfo,
   PRIORITIES,
   restoreTask,
@@ -16,6 +17,8 @@ import { timeRangeError } from '../lib/time'
 import { assignableEmails, shortName } from '../lib/spaces'
 import { useMyEmail } from '../lib/useMe'
 import { scheduleTaskToday, TASK_DRAG_TYPE } from '../lib/timeblocks'
+import { repeatLabel, type Repeat } from '../lib/repeat'
+import RepeatSelect from './RepeatSelect'
 import TimeRangeInput from './TimeRangeInput'
 import { useToggleTask } from './useToggleTask'
 import { useToast } from './Toast'
@@ -63,6 +66,12 @@ export default function TaskItem({ task, scheduledAt, goals = [], spaces = [] }:
     else toast(`Eingeplant um ${result.start} Uhr`, { label: 'Rückgängig', onClick: result.undo })
   }
 
+  async function toTomorrow() {
+    const tomorrow = addDays(todayISO(), 1)
+    const undo = await postponeTasks([task], tomorrow)
+    toast('Auf morgen verschoben', { label: 'Rückgängig', onClick: undo })
+  }
+
   const space = task.spaceId ? spaces.find((s) => s.id === task.spaceId) : undefined
   if (editing) return <TaskEditor task={task} block={editBlock} goals={goals} space={space} onClose={() => setEditing(false)} />
 
@@ -93,8 +102,8 @@ export default function TaskItem({ task, scheduledAt, goals = [], spaces = [] }:
         {task.notes && !task.done && (
           <span className="mt-0.5 block truncate text-sm text-slate-500 dark:text-slate-400">{task.notes}</span>
         )}
-        {(due || task.priority !== 3 || scheduledAt || goal || space) && !task.done && (
-          <span className="mt-1 flex items-center gap-3 text-xs">
+        {(due || task.priority !== 3 || scheduledAt || goal || space || task.repeat) && !task.done && (
+          <span className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-xs">
             {task.priority !== 3 && (
               <span className="flex items-center gap-1 text-slate-500 dark:text-slate-400">
                 <span className={`size-2 rounded-full ${prio.dot}`} />
@@ -103,6 +112,7 @@ export default function TaskItem({ task, scheduledAt, goals = [], spaces = [] }:
             )}
             {due && <span className={`font-medium ${dueColors[due.state]}`}>{due.label}</span>}
             {scheduledAt && <span className="text-emerald-600 dark:text-emerald-400">🕒 {scheduledAt} Uhr</span>}
+            {task.repeat && <span className="text-violet-600 dark:text-violet-400">🔁 {repeatLabel(task.repeat)}</span>}
             {goal && <span className="truncate text-slate-500 dark:text-slate-400">🎯 {goal.title}</span>}
             {space && (
               <span className="truncate text-sky-700 dark:text-sky-300">
@@ -122,6 +132,16 @@ export default function TaskItem({ task, scheduledAt, goals = [], spaces = [] }:
           className="rounded-md px-1.5 text-slate-400 opacity-0 group-hover:opacity-100 hover:text-indigo-600 focus:opacity-100 max-md:opacity-100"
         >
           🕒
+        </button>
+      )}
+      {!task.done && task.dueDate && task.dueDate <= todayISO() && (
+        <button
+          onClick={toTomorrow}
+          aria-label="Auf morgen verschieben"
+          title="Auf morgen verschieben"
+          className="rounded-md px-1.5 text-slate-400 opacity-0 group-hover:opacity-100 hover:text-indigo-600 focus:opacity-100 max-md:opacity-100"
+        >
+          ⏭️
         </button>
       )}
       <button
@@ -156,6 +176,7 @@ function TaskEditor({
   const [end, setEnd] = useState(block?.end ?? '')
   const [goalId, setGoalId] = useState<string | undefined>(task.goalId)
   const [assignee, setAssignee] = useState(task.assignee ?? '')
+  const [repeat, setRepeat] = useState<Repeat | ''>(task.repeat ?? '')
   const me = useMyEmail()
   // Mitglieder des Bereichs (nur bei gemeinsamen Aufgaben)
   const members = useLiveQuery(() => (space ? db.members.where('realmId').equals(space.realmId).toArray() : []), [space?.realmId]) ?? []
@@ -175,6 +196,7 @@ function TaskEditor({
         priority,
         dueDate: dueDate || undefined,
         goalId,
+        repeat: repeat || undefined,
         ...(space ? { assignee: assignee || undefined } : {}),
       },
       { start, end },
@@ -230,6 +252,7 @@ function TaskEditor({
             }}
             className={fieldClass}
           />
+          <RepeatSelect value={repeat} onChange={setRepeat} className={fieldClass} />
           <select
             value={goalId ?? ''}
             onChange={(e) => setGoalId(e.target.value || undefined)}
@@ -272,7 +295,7 @@ function TaskEditor({
               {block ? 'Aus dem Tagesplan entfernen' : 'Keine Zeit'}
             </button>
           )}
-          {start && !dueDate && !timeError && <span className="text-slate-500 dark:text-slate-400">→ wird für heute geplant</span>}
+          {(start || repeat) && !dueDate && !timeError && <span className="text-slate-500 dark:text-slate-400">→ wird für heute geplant</span>}
           {timeError && <span className="text-rose-600 dark:text-rose-400">{timeError}</span>}
           <div className="ml-auto flex gap-2">
             <button type="button" onClick={onClose} className="rounded-lg px-3 py-1.5 text-sm text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800">

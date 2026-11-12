@@ -1,7 +1,10 @@
 import { useLiveQuery } from 'dexie-react-hooks'
 import { useEffect, useState } from 'react'
 import { db, type DayLog, type Task } from '../db'
+import { addDays, todayISO } from '../lib/date'
 import { MOODS } from '../lib/moods'
+import { postponeTasks } from '../lib/tasks'
+import { useToast } from './Toast'
 
 /** Ab dieser Stunde wird die Tagesbilanz automatisch angezeigt. */
 const REVIEW_HOUR = 18
@@ -21,6 +24,7 @@ export default function DayReview({ date, points, doneTasks, openTasks }: Props)
   const [mood, setMood] = useState<DayLog['mood']>()
   const [reflection, setReflection] = useState('')
   const [savedFlash, setSavedFlash] = useState(false)
+  const toast = useToast()
 
   // Gespeicherte Bilanz in die Felder übernehmen, sobald sie geladen ist.
   useEffect(() => {
@@ -69,10 +73,22 @@ export default function DayReview({ date, points, doneTasks, openTasks }: Props)
       </dl>
 
       {openTasks.length > 0 && (
-        <p className="mt-3 text-sm text-slate-600 dark:text-slate-300">
-          <span className="text-slate-500 dark:text-slate-400">Offen geblieben: </span>
-          {openTasks.map((t) => t.title).join(', ')}
-        </p>
+        <div className="mt-3 rounded-xl bg-amber-50 p-3 text-sm ring-1 ring-amber-200 dark:bg-amber-500/10 dark:ring-amber-500/30">
+          <p className="text-slate-700 dark:text-slate-200">
+            <span className="text-slate-500 dark:text-slate-400">Offen geblieben: </span>
+            {openTasks.map((t) => t.title).join(', ')}
+          </p>
+          <button
+            onClick={async () => {
+              const n = openTasks.length
+              const undo = await postponeTasks(openTasks, addDays(todayISO(), 1))
+              toast(`${n} ${n === 1 ? 'Aufgabe' : 'Aufgaben'} auf morgen verschoben`, { label: 'Rückgängig', onClick: undo })
+            }}
+            className="mt-2 rounded-lg bg-amber-500 px-3 py-1.5 font-semibold text-white hover:bg-amber-400"
+          >
+            ⏭️ Alles Offene auf morgen
+          </button>
+        </div>
       )}
 
       <fieldset className="mt-4">

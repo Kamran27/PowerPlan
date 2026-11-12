@@ -113,13 +113,14 @@ export async function deleteShoppingList(list: ShoppingList) {
   })
 }
 
-export async function addShoppingItem(list: ShoppingList, name: string, qty?: string) {
+export async function addShoppingItem(list: ShoppingList, name: string, qty?: string, category?: string) {
   await db.shoppingItems.add({
     listId: list.id,
     spaceId: list.spaceId,
     realmId: list.realmId,
     name: name.trim(),
     qty: qty?.trim() || undefined,
+    category,
     done: false,
     createdAt: new Date().toISOString(),
   } as ShoppingItem)
@@ -130,7 +131,7 @@ export async function toggleShoppingItem(item: ShoppingItem) {
   await db.shoppingItems.update(item.id, item.done ? { done: false, doneAt: undefined } : { done: true, doneAt: new Date().toISOString() })
 }
 
-export async function updateShoppingItem(id: string, changes: Partial<Pick<ShoppingItem, 'name' | 'qty'>>) {
+export async function updateShoppingItem(id: string, changes: Partial<Pick<ShoppingItem, 'name' | 'qty' | 'category'>>) {
   await db.shoppingItems.update(id, changes)
 }
 
@@ -138,7 +139,10 @@ export async function deleteShoppingItem(id: string) {
   await db.shoppingItems.delete(id)
 }
 
-/** Entfernt alle abgehakten Artikel einer Liste. */
+/**
+ * Räumt alle abgehakten Artikel einer Liste weg. Sie werden nur ausgeblendet (nicht gelöscht),
+ * damit sie als Vorschlag („schon mal gekauft“) wieder auftauchen.
+ */
 export async function clearDoneItems(list: ShoppingList) {
-  await db.shoppingItems.where('listId').equals(list.id).filter((i) => i.done).delete()
+  await db.shoppingItems.where('listId').equals(list.id).filter((i) => i.done && !i.cleared).modify({ cleared: true })
 }

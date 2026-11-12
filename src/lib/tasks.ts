@@ -1,5 +1,6 @@
 import { db, type Task, type TimeBlock } from '../db'
 import { todayISO } from './date'
+import { nextDueDate, type Repeat } from './repeat'
 import { resolveEnd } from './time'
 
 export type Priority = Task['priority']
@@ -29,10 +30,12 @@ export async function addTask(input: {
   spaceId?: string
   realmId?: string
   assignee?: string
+  repeat?: Repeat
 }) {
   const title = input.title.trim()
   if (!title) return
-  const dueDate = input.dueDate || (input.start ? todayISO() : undefined)
+  // Wiederkehrende Aufgaben brauchen einen ersten Termin (ohne Angabe: heute)
+  const dueDate = input.dueDate || (input.start || input.repeat ? todayISO() : undefined)
 
   await db.transaction('rw', db.tasks, db.timeBlocks, async () => {
     const taskId = await db.tasks.add({
@@ -45,6 +48,7 @@ export async function addTask(input: {
       // Nur setzen, wenn vorhanden – ohne realmId landet die Aufgabe automatisch im privaten Bereich
       ...(input.spaceId ? { spaceId: input.spaceId, realmId: input.realmId } : {}),
       ...(input.assignee ? { assignee: input.assignee } : {}),
+      ...(input.repeat ? { repeat: input.repeat } : {}),
     } as Task)
     if (input.start && dueDate) {
       await db.timeBlocks.add({
@@ -58,11 +62,84 @@ export async function addTask(input: {
   })
 }
 
-/** Abhaken/wieder öffnen. Merkt sich, wer erledigt hat (für Punkte bei gemeinsamen Aufgaben). */
-export async function toggleTask(task: Task) {
-  await db.tasks.update(task.id, task.done
-    ? { done: false, doneAt: undefined, doneBy: undefined }
-    : { done: true, doneAt: new Date().toISOString(), doneBy: db.cloud.currentUser.value?.email })
+/**
+ * Abhaken/wieder öffnen. Merkt sich, wer erledigt hat (für Punkte bei gemeinsamen Aufgaben).
+ * Wiederkehrende Aufgabe erledigt → nächste Aufgabe wird angelegt (samt Uhrzeit im Tagesplan).
+ * Wieder geöffnet → die automatisch angelegte, noch offene Nachfolgerin wird entfernt.
+ * Gibt den nächsten Termin zurück, falls eine Wiederholung angelegt wurde.
+ */
+export async function toggleTask(task: Task): Promise<{ nextDue?: string }> {
+  return db.transaction('rw', db.tasks, db.timeBlocks, async () => {
+    if (task.done) {
+      await db.tasks.update(task.id, { done: false, doneAt: undefined, doneBy: undefined })
+      if (task.repeat) {
+        const followers = await db.tasks.filter((t) => t.repeatFromId === task.id && !t.done).toArray()
+        for (const f of followers) {
+          await db.timeBlocks.where('taskId').equals(f.id).delete()
+          await db.tasks.delete(f.id)
+        }
+      }
+      return {}
+    }
+
+    await db.tasks.update(task.id, { done: true, doneAt: new Date().toISOString(), doneBy: db.cloud.currentUser.value?.email })
+    if (!task.repeat) return {}
+
+    // Schon eine Nachfolgerin da (z. B. abgehakt, zurückgenommen, erneut abgehakt)? Dann keine zweite.
+    const existing = await db.tasks.filter((t) => t.repeatFromId === task.id).count()
+    if (existing) return {}
+
+    const today = todayISO()
+    const due = task.dueDate ?? today
+    const nextDue = nextDueDate(due, task.repeat, today)
+    const nextId = await db.tasks.add({
+      title: task.title,
+      notes: task.notes,
+      priority: task.priority,
+      dueDate: nextDue,
+      done: false,
+      createdAt: new Date().toISOString(),
+      goalId: task.goalId,
+      repeat: task.repeat,
+      repeatFromId: task.id,
+      ...(task.spaceId ? { spaceId: task.spaceId, realmId: task.realmId } : {}),
+      ...(task.assignee ? { assignee: task.assignee } : {}),
+    } as Task)
+    // Uhrzeit mitnehmen: Block am Fälligkeitstag → gleicher Block am neuen Termin
+    const block = (await db.timeBlocks.where('taskId').equals(task.id).toArray()).find((b) => b.date === due)
+    if (block) {
+      await db.timeBlocks.add({ date: nextDue, start: block.start, end: block.end, title: task.title, taskId: nextId } as TimeBlock)
+    }
+    return { nextDue }
+  })
+}
+
+/**
+ * Verschiebt offene Aufgaben auf einen anderen Tag („auf morgen“). Zeitblöcke der Aufgaben,
+ * die an ihrem alten Termin oder heute im Tagesplan stehen, wandern mit (gleiche Uhrzeit).
+ * Gibt eine Funktion für „Rückgängig“ zurück.
+ */
+export async function postponeTasks(tasks: Task[], toDate: string): Promise<() => Promise<void>> {
+  const today = todayISO()
+  const before: { id: string; dueDate?: string }[] = []
+  const movedBlocks: { id: string; date: string }[] = []
+  await db.transaction('rw', db.tasks, db.timeBlocks, async () => {
+    for (const t of tasks) {
+      before.push({ id: t.id, dueDate: t.dueDate })
+      await db.tasks.update(t.id, { dueDate: toDate })
+      const blocks = await db.timeBlocks.where('taskId').equals(t.id).toArray()
+      for (const b of blocks.filter((b) => b.date === t.dueDate || b.date === today)) {
+        movedBlocks.push({ id: b.id, date: b.date })
+        await db.timeBlocks.update(b.id, { date: toDate })
+      }
+    }
+  })
+  return async () => {
+    await db.transaction('rw', db.tasks, db.timeBlocks, async () => {
+      for (const b of before) await db.tasks.update(b.id, { dueDate: b.dueDate })
+      for (const b of movedBlocks) await db.timeBlocks.update(b.id, { date: b.date })
+    })
+  }
 }
 
 export async function updateTask(id: string, changes: Partial<Omit<Task, 'id'>>) {
@@ -110,11 +187,11 @@ export async function findTaskBlock(task: Task): Promise<TimeBlock | undefined> 
  */
 export async function saveTaskWithTime(
   task: Task,
-  changes: { title: string; notes?: string; priority: Priority; dueDate?: string; goalId?: string; assignee?: string },
+  changes: { title: string; notes?: string; priority: Priority; dueDate?: string; goalId?: string; assignee?: string; repeat?: Repeat },
   time: { start: string; end: string },
   block?: TimeBlock,
 ) {
-  const dueDate = changes.dueDate || (time.start ? todayISO() : undefined)
+  const dueDate = changes.dueDate || (time.start || changes.repeat ? todayISO() : undefined)
   await db.transaction('rw', db.tasks, db.timeBlocks, async () => {
     await db.tasks.update(task.id, { ...changes, dueDate })
     if (time.start && dueDate) {

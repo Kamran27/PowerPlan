@@ -37,6 +37,12 @@ function formatShort(iso: string): string {
   return new Date(y, m - 1, d).toLocaleDateString('de-DE', { day: 'numeric', month: 'short' })
 }
 
+/** „Di, 17. Nov.“ */
+export function formatDayShort(iso: string): string {
+  const [y, m, d] = iso.split('-').map(Number)
+  return new Date(y, m - 1, d).toLocaleDateString('de-DE', { weekday: 'short', day: 'numeric', month: 'short' })
+}
+
 /** Lokales Datum ("JJJJ-MM-TT") eines ISO-Zeitstempels – wichtig rund um Mitternacht (UTC ≠ Ortszeit). */
 export function localDateOf(isoTimestamp: string): string {
   return toISODate(new Date(isoTimestamp))

@@ -1,5 +1,6 @@
 import Dexie, { type EntityTable, type Table } from 'dexie'
 import dexieCloud, { type DBRealm, type DBRealmMember, type DBRealmRole } from 'dexie-cloud-addon'
+import type { Repeat } from './lib/repeat'
 
 /*
  * Datenbank mit Dexie Cloud: Alles wird lokal gespeichert (offline nutzbar) und automatisch
@@ -32,6 +33,10 @@ export interface Task {
   assignee?: string
   /** Erledigt von (E-Mail) – wichtig für Punkte bei gemeinsamen Aufgaben. */
   doneBy?: string
+  /** Wiederholung – beim Erledigen entsteht automatisch die nächste Aufgabe. */
+  repeat?: Repeat
+  /** Bei einer automatisch angelegten Wiederholung: ID der Vorgänger-Aufgabe (für „Rückgängig“). */
+  repeatFromId?: string
 }
 
 /** Ein gemeinsamer Bereich, z. B. „Haushalt“ – geteilt über einen eigenen Realm. */
@@ -62,7 +67,11 @@ export interface ShoppingItem {
   name: string
   /** Menge als Freitext, z. B. „2“, „500 g“, „1 Pack“ */
   qty?: string
+  /** Abteilung im Laden (siehe lib/shopping.ts), z. B. "obst", "kuehl" */
+  category?: string
   done: boolean
+  /** Nach „Erledigte entfernen“ ausgeblendet, bleibt aber für Vorschläge („schon mal gekauft“) erhalten. */
+  cleared?: boolean
   doneAt?: string
   createdAt: string
 }
