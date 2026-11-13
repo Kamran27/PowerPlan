@@ -102,13 +102,71 @@ export async function deleteRecipe(id: string) {
  */
 export async function addRecipeToList(list: ShoppingList, recipe: Recipe, servings: number, selected: Ingredient[]): Promise<number> {
   const factor = servings / (recipe.servings || 1)
+  return addIngredientsToList(
+    list,
+    selected.map((i) => ({ ...i, qty: scaleQty(i.qty, factor) })),
+  )
+}
+
+/** Zutaten (Mengen schon fertig) auf die Liste setzen; was dort schon offen steht, wird übersprungen. */
+export async function addIngredientsToList(list: ShoppingList, ingredients: Ingredient[]): Promise<number> {
   const open = await db.shoppingItems.where('listId').equals(list.id).filter((i) => !i.done && !i.cleared).toArray()
   const openNames = new Set(open.map((i) => normalizeName(i.name)))
   let added = 0
-  for (const ing of selected) {
+  for (const ing of ingredients) {
     if (openNames.has(normalizeName(ing.name))) continue
-    await addShoppingItem(list, ing.name, scaleQty(ing.qty, factor), ing.category ?? guessCategory(ing.name))
+    await addShoppingItem(list, ing.name, ing.qty, ing.category ?? guessCategory(ing.name))
+    openNames.add(normalizeName(ing.name))
     added++
   }
   return added
+}
+
+/* ---------- Mengen zusammenrechnen (für den Essensplan) ---------- */
+
+/** „500 g“ → { amount: 500, unit: "g" }; Spannen („3–4“) und Text („etwas“) → null */
+export function splitQty(qty?: string): { amount: number; unit: string } | null {
+  if (!qty) return null
+  const m = qty.match(new RegExp(`^(${NUMBER})\\s*(.*)$`, 'u'))
+  if (!m || /^(-|–|bis)/.test(m[2].trim())) return null
+  const amount = toNumber(m[1])
+  return Number.isNaN(amount) ? null : { amount, unit: m[2].trim() }
+}
+
+/** Menge schön schreiben: aufrunden bei Stück/Dose, 1000 g → 1 kg, Komma statt Punkt. */
+export function formatAmount(amount: number, unit: string): string {
+  let v = amount
+  let u = unit
+  if (COUNTABLE.test(u)) v = Math.ceil(v - 1e-9)
+  else if (/^(g|ml)$/i.test(u) && v >= 50) v = Math.round(v / 5) * 5
+  if (/^(g|ml)$/i.test(u) && v >= 1000) {
+    u = u.toLowerCase() === 'g' ? 'kg' : 'l'
+    v = v / 1000
+  }
+  return u ? `${format(v)} ${u}` : format(v)
+}
+
+/**
+ * Fasst gleiche Zutaten zusammen: 2× „250 g Hackfleisch“ → „500 g Hackfleisch“.
+ * Gleiche Einheit wird addiert; unterschiedliche Einheiten oder Text bleiben nebeneinander („500 g + 1 Pck.“).
+ */
+export function combineIngredients(list: Ingredient[]): Ingredient[] {
+  const groups = new Map<string, { name: string; category?: string; sums: Map<string, { unit: string; amount: number }>; texts: string[] }>()
+  for (const ing of list) {
+    // Einzahl/Mehrzahl zusammenfassen: „Zwiebel“/„Zwiebeln“, „Tomate“/„Tomaten“, „Kartoffel“/„Kartoffeln“
+    const key = normalizeName(ing.name).replace(/(?<=[el])n$/u, '')
+    let g = groups.get(key)
+    if (!g) groups.set(key, (g = { name: ing.name, category: ing.category, sums: new Map(), texts: [] }))
+    const q = splitQty(ing.qty)
+    if (q) {
+      const uKey = q.unit.toLowerCase().replace(/\.$/, '')
+      const s = g.sums.get(uKey)
+      if (s) s.amount += q.amount
+      else g.sums.set(uKey, { unit: q.unit, amount: q.amount })
+    } else if (ing.qty) g.texts.push(ing.qty)
+  }
+  return [...groups.values()].map((g) => {
+    const parts = [...[...g.sums.values()].map((s) => formatAmount(s.amount, s.unit)), ...g.texts]
+    return { name: g.name, category: g.category, qty: parts.length ? parts.join(' + ') : undefined }
+  })
 }

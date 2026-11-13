@@ -5,6 +5,7 @@ import {
   type Goal,
   type Habit,
   type HabitCheck,
+  type Meal,
   type Recipe,
   type ShoppingItem,
   type ShoppingList,
@@ -18,9 +19,9 @@ import { createSpace } from './spaces'
 const FORMAT = 'powerplan-backup'
 /**
  * 1 = Aufgaben, Zeitblöcke, Tagesbilanzen · 2 = + Gewohnheiten · 3 = + Ziele und Wochenfokus
- * 4 = Cloud-Version: IDs sind Texte · 5 = + gemeinsame Bereiche, Einkaufslisten, Artikel und Rezepte
+ * 4 = Cloud-Version: IDs sind Texte · 5 = + gemeinsame Bereiche, Einkaufslisten, Artikel und Rezepte · 6 = + Essensplan
  */
-const VERSION = 5
+const VERSION = 6
 
 interface Backup {
   format: typeof FORMAT
@@ -38,6 +39,7 @@ interface Backup {
   shoppingLists: ShoppingList[]
   shoppingItems: ShoppingItem[]
   recipes: Recipe[]
+  meals: Meal[]
 }
 
 /** Alle Daten als JSON-Datei herunterladen. */
@@ -57,6 +59,7 @@ export async function exportBackup() {
     shoppingLists: await db.shoppingLists.toArray(),
     shoppingItems: await db.shoppingItems.toArray(),
     recipes: await db.recipes.toArray(),
+    meals: await db.meals.toArray(),
   }
   const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' })
   const url = URL.createObjectURL(blob)
@@ -67,7 +70,7 @@ export async function exportBackup() {
   URL.revokeObjectURL(url)
 }
 
-/** Liest und prüft eine Backup-Datei (Version 1–5). Wirft einen Fehler mit deutscher Meldung, wenn ungültig. */
+/** Liest und prüft eine Backup-Datei (Version 1–6). Wirft einen Fehler mit deutscher Meldung, wenn ungültig. */
 export async function readBackup(file: File): Promise<Backup> {
   let data: unknown
   try {
@@ -98,6 +101,7 @@ export async function readBackup(file: File): Promise<Backup> {
     shoppingLists: list(b.shoppingLists),
     shoppingItems: list(b.shoppingItems),
     recipes: list(b.recipes),
+    meals: list(b.meals),
   }
 }
 
@@ -117,7 +121,7 @@ function withoutId<T extends { id: string }>(o: T): Omit<T, 'id'> {
 
 /**
  * Übernimmt eine Sicherung in die (Cloud-)Datenbank. Es wird nichts gelöscht:
- * - Version 4–5: Einträge werden mit ihren IDs zurückgeschrieben (gleiche ID = aktualisieren)
+ * - Version 4–6: Einträge werden mit ihren IDs zurückgeschrieben (gleiche ID = aktualisieren)
  * - Version 1–3 (vor der Cloud): Einträge bekommen neue IDs, Verknüpfungen werden umgeschrieben
  *
  * Gemeinsame Bereiche (ab Version 5):
@@ -148,7 +152,7 @@ export async function restoreBackup(b: Backup): Promise<RestoreResult> {
     }
   }
 
-  const tables = [db.tasks, db.timeBlocks, db.dayLogs, db.habits, db.habitChecks, db.goals, db.weekFocus, db.shoppingLists, db.shoppingItems, db.recipes]
+  const tables = [db.tasks, db.timeBlocks, db.dayLogs, db.habits, db.habitChecks, db.goals, db.weekFocus, db.shoppingLists, db.shoppingItems, db.recipes, db.meals]
   await db.transaction('rw', tables, async () => {
     // 2) Aufgaben – bei neu angelegten Bereichen mit neuer ID (Zeitblöcke werden umgehängt)
     const taskIdMap = new Map<string, string>()
@@ -196,11 +200,23 @@ export async function restoreBackup(b: Backup): Promise<RestoreResult> {
         if (listId) await db.shoppingItems.add({ ...withoutId(i), listId, spaceId: target.id, realmId: target.realmId } as ShoppingItem)
       }
     }
+    const recipeIdMap = new Map<string, string>()
     for (const r of b.recipes) {
       const target = spaceMap.get(r.spaceId)
       if (!target) continue
       if (!target.recreated) await db.recipes.put({ ...r, realmId: target.realmId })
-      else await db.recipes.add({ ...withoutId(r), spaceId: target.id, realmId: target.realmId } as Recipe)
+      else recipeIdMap.set(r.id, await db.recipes.add({ ...withoutId(r), spaceId: target.id, realmId: target.realmId } as Recipe))
+    }
+
+    // 5) Essensplan – Verweis aufs Rezept bei neu angelegten Bereichen umhängen
+    for (const m of b.meals) {
+      const target = spaceMap.get(m.spaceId)
+      if (!target) continue
+      if (!target.recreated) await db.meals.put({ ...m, realmId: target.realmId })
+      else {
+        const recipeId = m.recipeId ? recipeIdMap.get(m.recipeId) : undefined
+        await db.meals.add({ ...withoutId(m), spaceId: target.id, realmId: target.realmId, recipeId } as Meal)
+      }
     }
   })
   return result

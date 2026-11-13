@@ -57,6 +57,7 @@ export default function Einstellungen() {
       [p.spaces.length, 'gemeinsamer Bereich', 'gemeinsame Bereiche'],
       [p.shoppingItems.filter((i) => !i.cleared).length, 'Einkaufsartikel', 'Einkaufsartikel'],
       [p.recipes.length, 'Rezept', 'Rezepte'],
+      [p.meals.length, 'geplantes Essen', 'geplante Essen'],
     ]
     return parts
       .filter(([n], i) => n > 0 || i < 2)
@@ -72,7 +73,7 @@ export default function Einstellungen() {
         <h2 className="font-semibold">Datensicherung</h2>
         <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
           Deine Daten werden automatisch mit der Cloud abgeglichen. Eine Sicherungsdatei ist trotzdem ein gutes Extra-Backup, z. B. in deinem iCloud Drive.
-          Sie enthält alles: deine privaten Daten und die gemeinsamen Bereiche mit Aufgaben, Einkaufslisten und Rezepten.
+          Sie enthält alles: deine privaten Daten und die gemeinsamen Bereiche mit Aufgaben, Einkaufslisten, Rezepten und Essensplan.
         </p>
         <div className="mt-4 flex flex-wrap gap-2">
           <button

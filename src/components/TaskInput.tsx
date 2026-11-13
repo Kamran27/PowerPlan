@@ -3,7 +3,7 @@ import type { Space } from '../db'
 import { formatDayShort, todayISO } from '../lib/date'
 import { parseQuickInput } from '../lib/quickparse'
 import { repeatLabel } from '../lib/repeat'
-import { shortName } from '../lib/spaces'
+import { makeRotation, shortName } from '../lib/spaces'
 import { addTask, PRIORITIES, type Priority } from '../lib/tasks'
 import { useMyEmail } from '../lib/useMe'
 import { timeRangeError } from '../lib/time'
@@ -31,6 +31,7 @@ export default function TaskInput({ defaultDueDate, space, people = [] }: Props)
   const [end, setEnd] = useState('')
   const [assignee, setAssignee] = useState('')
   const [repeat, setRepeat] = useState<Repeat | ''>('')
+  const [rotate, setRotate] = useState(false)
   /** „Nicht erkennen“ gedrückt: Text bleibt wörtlich so, wie getippt */
   const [literal, setLiteral] = useState(false)
   const me = useMyEmail()
@@ -50,13 +51,19 @@ export default function TaskInput({ defaultDueDate, space, people = [] }: Props)
     if (!canSubmit) return
     // Erkanntes hat Vorrang vor den Feldern darunter
     const p = useParsed ? parsed : undefined
-    const finalAssignee = p?.assignee !== undefined ? p.assignee : assignee
+    let finalAssignee = p?.assignee !== undefined ? p.assignee : assignee
+    const finalRepeat = p?.repeat ?? (repeat || undefined)
+    // Abwechselnd: Reihenfolge ab der zuständigen Person (sonst ab mir)
+    const wantsRotation = !!space && !!finalRepeat && people.length > 1 && (rotate || !!p?.rotate)
+    const rotation = wantsRotation ? makeRotation(people, finalAssignee || me) : undefined
+    if (rotation) finalAssignee = rotation[0]
     // Sofort leeren, damit schnelles Weitertippen nicht verloren geht.
     // Die Uhrzeit gilt nur für diese eine Aufgabe; Priorität und Datum bleiben für die nächste stehen.
     setTitle('')
     setStart('')
     setEnd('')
     setRepeat('')
+    setRotate(false)
     setLiteral(false)
     await addTask({
       title: p ? p.title : title,
@@ -64,8 +71,8 @@ export default function TaskInput({ defaultDueDate, space, people = [] }: Props)
       dueDate: p?.dueDate ?? dueDate,
       start: p?.start ?? start,
       end: p?.start ? p.end : end,
-      repeat: p?.repeat ?? (repeat || undefined),
-      ...(space ? { spaceId: space.id, realmId: space.realmId, assignee: finalAssignee || undefined } : {}),
+      repeat: finalRepeat,
+      ...(space ? { spaceId: space.id, realmId: space.realmId, assignee: finalAssignee || undefined, rotation } : {}),
     })
   }
 
@@ -114,6 +121,7 @@ export default function TaskInput({ defaultDueDate, space, people = [] }: Props)
               {parsed.assignee !== undefined && (
                 <Chip>{parsed.assignee ? `👤 ${parsed.assignee === me ? 'Ich' : shortName(parsed.assignee)}` : '👥 Für alle'}</Chip>
               )}
+              {parsed.rotate && <Chip>🔄 Abwechselnd</Chip>}
               <button type="button" onClick={() => setLiteral(true)} className="text-slate-500 hover:underline dark:text-slate-400">
                 Nicht erkennen
               </button>
@@ -160,6 +168,12 @@ export default function TaskInput({ defaultDueDate, space, people = [] }: Props)
               </option>
             ))}
           </select>
+        )}
+        {space && people.length > 1 && (repeat || (useParsed && parsed.repeat)) && (
+          <label className="flex items-center gap-1.5 text-sm text-slate-700 dark:text-slate-200" title="Nach jedem Erledigen ist die nächste Person dran">
+            <input type="checkbox" checked={rotate || (useParsed && !!parsed.rotate)} onChange={(e) => setRotate(e.target.checked)} className="size-4 accent-indigo-600" />
+            🔄 Abwechselnd
+          </label>
         )}
       </div>
       {(dueDate || start || repeat || timeError) && (

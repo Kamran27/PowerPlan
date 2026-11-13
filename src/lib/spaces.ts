@@ -69,7 +69,8 @@ export async function renameSpace(space: Space, title: string, emoji?: string) {
  * sie verschwinden mit dem Realm. Offline bleibt der (dann leere) Realm einfach bestehen – das stört nicht.
  */
 export async function deleteSpace(space: Space) {
-  await db.transaction('rw', [db.spaces, db.tasks, db.shoppingLists, db.shoppingItems, db.recipes], async () => {
+  await db.transaction('rw', [db.spaces, db.tasks, db.shoppingLists, db.shoppingItems, db.recipes, db.meals], async () => {
+    await db.meals.where('spaceId').equals(space.id).delete()
     await db.recipes.where('spaceId').equals(space.id).delete()
     await db.shoppingItems.where('spaceId').equals(space.id).delete()
     await db.shoppingLists.where('spaceId').equals(space.id).delete()
@@ -101,6 +102,20 @@ export async function removeMember(memberId: string) {
 /** Alle E-Mails, denen man im Bereich Aufgaben zuweisen kann (Ersteller + Mitglieder). */
 export function assignableEmails(space: Space, memberEmails: (string | undefined)[]): string[] {
   return Array.from(new Set([space.createdByEmail, ...memberEmails].filter((e): e is string => !!e)))
+}
+
+/* ---------- Haushalts-Rotation ---------- */
+
+/** Reihenfolge für „abwechselnd“: alle Personen, beginnend bei `start` (z. B. [ich, anna] ab anna → [anna, ich]). */
+export function makeRotation(people: string[], start?: string): string[] {
+  const i = start ? people.indexOf(start) : -1
+  return i <= 0 ? [...people] : [...people.slice(i), ...people.slice(0, i)]
+}
+
+/** Wer ist als Nächstes dran? Unbekannt/leer → die erste Person. */
+export function nextInRotation(rotation: string[], current?: string): string {
+  const i = current ? rotation.indexOf(current) : -1
+  return rotation[(i + 1) % rotation.length]
 }
 
 /* ---------- Einkaufslisten ---------- */

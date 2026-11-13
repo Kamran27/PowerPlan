@@ -37,6 +37,11 @@ export interface Task {
   repeat?: Repeat
   /** Bei einer automatisch angelegten Wiederholung: ID der Vorgänger-Aufgabe (für „Rückgängig“). */
   repeatFromId?: string
+  /**
+   * Haushalts-Rotation (nur gemeinsam + wiederkehrend): Reihenfolge der E-Mails. Beim Erledigen
+   * bekommt die nächste Aufgabe automatisch die nächste Person als Zuständige.
+   */
+  rotation?: string[]
 }
 
 /** Ein gemeinsamer Bereich, z. B. „Haushalt“ – geteilt über einen eigenen Realm. */
@@ -92,6 +97,20 @@ export interface Recipe {
   /** Für wie viele Personen die Mengen gelten */
   servings: number
   ingredients: Ingredient[]
+  createdAt: string
+}
+
+/** Ein geplantes Essen im Wochen-Essensplan eines Bereichs (aus einem Rezept oder frei eingetragen). */
+export interface Meal {
+  id: string
+  spaceId: string
+  realmId: string
+  /** Tag "JJJJ-MM-TT" */
+  date: string
+  title: string
+  recipeId?: string
+  /** Für wie viele Personen (für die Mengen auf der Einkaufsliste) */
+  servings: number
   createdAt: string
 }
 
@@ -172,6 +191,7 @@ export const db = new Dexie('powerplan-cloud', { addons: [dexieCloud] }) as Dexi
   shoppingLists: EntityTable<ShoppingList, 'id'>
   shoppingItems: EntityTable<ShoppingItem, 'id'>
   recipes: EntityTable<Recipe, 'id'>
+  meals: EntityTable<Meal, 'id'>
 }
 
 // „@id“ = Dexie Cloud vergibt eine weltweit eindeutige Text-ID. Danach: Felder, nach denen gesucht wird.
@@ -199,6 +219,11 @@ db.version(2).stores({
 // Version 3: Rezepte (pro Bereich, geteilt wie die Einkaufslisten)
 db.version(3).stores({
   recipes: '@id, spaceId',
+})
+
+// Version 4: Essensplan (pro Bereich und Tag)
+db.version(4).stores({
+  meals: '@id, spaceId, date, [spaceId+date]',
 })
 
 db.cloud.configure({

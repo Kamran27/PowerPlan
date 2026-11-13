@@ -1,6 +1,7 @@
 import { db, type Task, type TimeBlock } from '../db'
 import { todayISO } from './date'
 import { nextDueDate, type Repeat } from './repeat'
+import { nextInRotation } from './spaces'
 import { resolveEnd } from './time'
 
 export type Priority = Task['priority']
@@ -31,6 +32,8 @@ export async function addTask(input: {
   realmId?: string
   assignee?: string
   repeat?: Repeat
+  /** Haushalts-Rotation: Reihenfolge der E-Mails (nur gemeinsam + wiederkehrend) */
+  rotation?: string[]
 }) {
   const title = input.title.trim()
   if (!title) return
@@ -49,6 +52,7 @@ export async function addTask(input: {
       ...(input.spaceId ? { spaceId: input.spaceId, realmId: input.realmId } : {}),
       ...(input.assignee ? { assignee: input.assignee } : {}),
       ...(input.repeat ? { repeat: input.repeat } : {}),
+      ...(input.repeat && input.spaceId && input.rotation?.length ? { rotation: input.rotation } : {}),
     } as Task)
     if (input.start && dueDate) {
       await db.timeBlocks.add({
@@ -68,7 +72,7 @@ export async function addTask(input: {
  * Wieder geöffnet → die automatisch angelegte, noch offene Nachfolgerin wird entfernt.
  * Gibt den nächsten Termin zurück, falls eine Wiederholung angelegt wurde.
  */
-export async function toggleTask(task: Task): Promise<{ nextDue?: string }> {
+export async function toggleTask(task: Task): Promise<{ nextDue?: string; nextAssignee?: string }> {
   return db.transaction('rw', db.tasks, db.timeBlocks, async () => {
     if (task.done) {
       await db.tasks.update(task.id, { done: false, doneAt: undefined, doneBy: undefined })
@@ -92,6 +96,8 @@ export async function toggleTask(task: Task): Promise<{ nextDue?: string }> {
     const today = todayISO()
     const due = task.dueDate ?? today
     const nextDue = nextDueDate(due, task.repeat, today)
+    // Rotation: die nächste Person ist dran
+    const nextAssignee = task.rotation?.length ? nextInRotation(task.rotation, task.assignee) : task.assignee
     const nextId = await db.tasks.add({
       title: task.title,
       notes: task.notes,
@@ -103,14 +109,15 @@ export async function toggleTask(task: Task): Promise<{ nextDue?: string }> {
       repeat: task.repeat,
       repeatFromId: task.id,
       ...(task.spaceId ? { spaceId: task.spaceId, realmId: task.realmId } : {}),
-      ...(task.assignee ? { assignee: task.assignee } : {}),
+      ...(nextAssignee ? { assignee: nextAssignee } : {}),
+      ...(task.rotation?.length ? { rotation: task.rotation } : {}),
     } as Task)
     // Uhrzeit mitnehmen: Block am Fälligkeitstag → gleicher Block am neuen Termin
     const block = (await db.timeBlocks.where('taskId').equals(task.id).toArray()).find((b) => b.date === due)
     if (block) {
       await db.timeBlocks.add({ date: nextDue, start: block.start, end: block.end, title: task.title, taskId: nextId } as TimeBlock)
     }
-    return { nextDue }
+    return { nextDue, nextAssignee: task.rotation?.length ? nextAssignee : undefined }
   })
 }
 
@@ -187,7 +194,7 @@ export async function findTaskBlock(task: Task): Promise<TimeBlock | undefined> 
  */
 export async function saveTaskWithTime(
   task: Task,
-  changes: { title: string; notes?: string; priority: Priority; dueDate?: string; goalId?: string; assignee?: string; repeat?: Repeat },
+  changes: { title: string; notes?: string; priority: Priority; dueDate?: string; goalId?: string; assignee?: string; repeat?: Repeat; rotation?: string[] },
   time: { start: string; end: string },
   block?: TimeBlock,
 ) {

@@ -35,6 +35,8 @@ export default function Heute() {
   const dateLabel = now.toLocaleDateString('de-DE', { weekday: 'long', day: 'numeric', month: 'long' })
 
   const allTasks = useLiveQuery(() => db.tasks.toArray(), [])
+  // Heute geplantes Essen (Essensplan der gemeinsamen Bereiche)
+  const todaysMeals = useLiveQuery(() => db.meals.where('date').equals(today).toArray(), [today])
   const me = useMyEmail()
   const { habits, doneByHabit, loaded: habitsLoaded } = useHabits()
   const blocks = useDayBlocks(today)
@@ -83,6 +85,11 @@ export default function Heute() {
             <span aria-hidden>⭐</span> Level <strong className="tabular-nums">{game.level.level}</strong>{' '}
             <span className="text-slate-500 dark:text-slate-400">({game.level.pct} %)</span>
           </span>
+          {todaysMeals && todaysMeals.length > 0 && (
+            <span title="Aus dem Essensplan eurer gemeinsamen Bereiche">
+              <span aria-hidden>🍽️</span> {todaysMeals.map((m) => m.title).join(', ')}
+            </span>
+          )}
           {allDoneToday && (
             <span className="font-medium text-emerald-600 dark:text-emerald-400">
               Alles erledigt – der Tag zählt für deinen Streak! 🎉

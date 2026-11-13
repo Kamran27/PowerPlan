@@ -1,6 +1,7 @@
 import { useLiveQuery } from 'dexie-react-hooks'
 import { useEffect, useState, type FormEvent } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
+import MealPlanView from '../components/MealPlanView'
 import RecipesPanel from '../components/RecipesPanel'
 import ShoppingListView from '../components/ShoppingListView'
 import TaskInput from '../components/TaskInput'
@@ -21,7 +22,7 @@ import {
 import { useMyEmail } from '../lib/useMe'
 
 const card = 'rounded-2xl bg-white p-5 shadow-sm ring-1 ring-slate-200 dark:bg-slate-900 dark:ring-slate-800'
-type Tab = 'aufgaben' | 'einkauf' | 'mitglieder'
+type Tab = 'aufgaben' | 'einkauf' | 'essen' | 'mitglieder'
 
 /** Ein gemeinsamer Bereich: Aufgaben, Einkaufslisten und Mitglieder. */
 export default function Bereich() {
@@ -66,11 +67,12 @@ export default function Bereich() {
       <SpaceHeader space={space} people={people} me={me} />
 
       {/* Reiter */}
-      <div role="tablist" className="mt-4 mb-4 flex gap-1">
+      <div role="tablist" className="mt-4 mb-4 flex flex-wrap gap-1">
         {(
           [
             ['aufgaben', '✅ Aufgaben'],
             ['einkauf', '🛒 Einkauf'],
+            ['essen', '🍽️ Essen'],
             ['mitglieder', '👥 Mitglieder'],
           ] as [Tab, string][]
         ).map(([value, label]) => (
@@ -153,6 +155,7 @@ export default function Bereich() {
         </section>
       )}
       {tab === 'einkauf' && <RecipesPanel space={space} list={activeList} />}
+      {tab === 'essen' && <MealPlanView space={space} lists={lists ?? []} />}
 
       {tab === 'mitglieder' && (
         <section className={card}>

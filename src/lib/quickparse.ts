@@ -22,6 +22,8 @@ export interface QuickParse {
   priority?: 1 | 2 | 3
   /** E-Mail, '' = ausdrücklich „für alle“, undefined = nichts erkannt */
   assignee?: string
+  /** „abwechselnd“ erkannt → Haushalts-Rotation */
+  rotate?: boolean
   /** Wurde überhaupt etwas erkannt? */
   found: boolean
 }
@@ -192,6 +194,8 @@ export function parseQuickInput(input: string, today: string, opts: { people?: s
 
   /* ---- Zuständig (nur in gemeinsamen Bereichen) ---- */
   if (opts.people) {
+    // „abwechselnd“ / „@abwechselnd“ → Haushalts-Rotation (vor @Name, sonst wäre es ein Name)
+    take(`(?:^|\\s)@?abwechselnd${E}`, () => ((r.rotate = true), true))
     take(`(?:^|\\s)@([\\p{L}\\d._-]+)`, (m) => {
       const who = m[1].toLowerCase()
       if (who === 'alle') return (r.assignee = ''), true

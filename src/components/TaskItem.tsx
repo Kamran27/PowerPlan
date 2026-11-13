@@ -14,7 +14,7 @@ import {
   type Priority,
 } from '../lib/tasks'
 import { timeRangeError } from '../lib/time'
-import { assignableEmails, shortName } from '../lib/spaces'
+import { assignableEmails, makeRotation, shortName } from '../lib/spaces'
 import { useMyEmail } from '../lib/useMe'
 import { scheduleTaskToday, TASK_DRAG_TYPE } from '../lib/timeblocks'
 import { repeatLabel, type Repeat } from '../lib/repeat'
@@ -119,6 +119,7 @@ export default function TaskItem({ task, scheduledAt, goals = [], spaces = [] }:
                 👥 {space.emoji ? `${space.emoji} ` : ''}
                 {space.title}
                 {task.assignee ? ` → ${shortName(task.assignee)}` : ' · alle'}
+                {task.rotation?.length ? ' · 🔄 abwechselnd' : ''}
               </span>
             )}
           </span>
@@ -177,6 +178,7 @@ function TaskEditor({
   const [goalId, setGoalId] = useState<string | undefined>(task.goalId)
   const [assignee, setAssignee] = useState(task.assignee ?? '')
   const [repeat, setRepeat] = useState<Repeat | ''>(task.repeat ?? '')
+  const [rotate, setRotate] = useState(!!task.rotation?.length)
   const me = useMyEmail()
   // Mitglieder des Bereichs (nur bei gemeinsamen Aufgaben)
   const members = useLiveQuery(() => (space ? db.members.where('realmId').equals(space.realmId).toArray() : []), [space?.realmId]) ?? []
@@ -188,6 +190,8 @@ function TaskEditor({
   async function save(e: FormEvent) {
     e.preventDefault()
     if (!canSave) return
+    // Abwechselnd: Reihenfolge ab der zuständigen Person (sonst ab mir); nur mit Wiederholung
+    const rotation = space && repeat && rotate && people.length > 1 ? makeRotation(people, assignee || me) : undefined
     await saveTaskWithTime(
       task,
       {
@@ -197,7 +201,7 @@ function TaskEditor({
         dueDate: dueDate || undefined,
         goalId,
         repeat: repeat || undefined,
-        ...(space ? { assignee: assignee || undefined } : {}),
+        ...(space ? { assignee: (rotation ? rotation[0] : assignee) || undefined, rotation } : {}),
       },
       { start, end },
       block,
@@ -280,6 +284,12 @@ function TaskEditor({
                 </option>
               ))}
             </select>
+          )}
+          {space && repeat && people.length > 1 && (
+            <label className="flex items-center gap-1.5 text-sm" title="Nach jedem Erledigen ist die nächste Person dran">
+              <input type="checkbox" checked={rotate} onChange={(e) => setRotate(e.target.checked)} className="size-4 accent-indigo-600" />
+              🔄 Abwechselnd
+            </label>
           )}
         </div>
         <div className="flex flex-wrap items-center gap-3 text-xs">
