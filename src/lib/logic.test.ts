@@ -160,3 +160,17 @@ describe('Wochenrückblick', () => {
     expect(reviewWeekFor('2026-11-12')).toBe('2026-11-02') // Donnerstag
   })
 })
+
+describe('Fokus-Timer', () => {
+  it('begrenzt die Dauer und rechnet Punkte nach Länge', async () => {
+    const { clampMinutes } = await import('./focus')
+    const { sessionPoints } = await import('./points')
+    expect(clampMinutes(0)).toBe(1)
+    expect(clampMinutes(37.4)).toBe(37)
+    expect(clampMinutes(999)).toBe(240)
+    expect(sessionPoints(25)).toBe(10)
+    expect(sessionPoints(60)).toBe(24)
+    expect(sessionPoints(1)).toBe(1)
+    expect(sessionPoints(240)).toBe(40)
+  })
+})

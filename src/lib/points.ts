@@ -5,8 +5,10 @@ import { HABIT_POINTS } from './habits'
 import { pointsForMe } from './spaces'
 
 /** Punkte pro erledigter Aufgabe, nach Priorität. */
-/** Punkte pro abgeschlossener Fokus-Timer-Sitzung. */
-export const SESSION_POINTS = 10
+/** Punkte für eine abgeschlossene Fokus-Sitzung: je länger, desto mehr (25 Min. = 10, 60 Min. = 24, max. 40). */
+export function sessionPoints(minutes: number): number {
+  return Math.min(40, Math.max(1, Math.round(minutes * 0.4)))
+}
 /** Punkte für einen abgeschlossenen Wochenrückblick. */
 export const REVIEW_POINTS = 25
 
@@ -36,7 +38,7 @@ export interface PointSources {
 
 /**
  * Punkte pro Tag (Datum → Summe):
- * Aufgaben 30/20/10 · Gewohnheit 10 · Wochenfokus 25 · Monatsziel erreicht 100 · Fokus-Sitzung 10 · Wochenrückblick 25.
+ * Aufgaben 30/20/10 · Gewohnheit 10 · Wochenfokus 25 · Monatsziel erreicht 100 · Fokus-Sitzung 25 Min. = 10 · Wochenrückblick 25.
  */
 export function pointsByDay({ tasks, me, habitChecks = [], focus = [], goals = [], sessions = [], reviews = [] }: PointSources): Map<string, number> {
   const map = new Map<string, number>()
@@ -48,7 +50,7 @@ export function pointsByDay({ tasks, me, habitChecks = [], focus = [], goals = [
   for (const c of habitChecks) add(c.date, HABIT_POINTS)
   for (const f of focus) if (f.doneAt) add(localDateOf(f.doneAt), FOCUS_POINTS)
   for (const g of goals) if (g.achievedAt) add(localDateOf(g.achievedAt), GOAL_POINTS)
-  for (const s of sessions) add(s.date, SESSION_POINTS)
+  for (const s of sessions) add(s.date, sessionPoints(s.minutes))
   for (const r of reviews) add(localDateOf(r.savedAt), REVIEW_POINTS)
   return map
 }
@@ -139,7 +141,7 @@ export function pointsBySource(
   for (const c of habitChecks) if (inRange(c.date)) sum.habits += HABIT_POINTS
   for (const f of focus) if (f.doneAt && inRange(localDateOf(f.doneAt))) sum.focus += FOCUS_POINTS
   for (const g of goals) if (g.achievedAt && inRange(localDateOf(g.achievedAt))) sum.goals += GOAL_POINTS
-  for (const s of sessions) if (inRange(s.date)) sum.sessions += SESSION_POINTS
+  for (const s of sessions) if (inRange(s.date)) sum.sessions += sessionPoints(s.minutes)
   for (const r of reviews) if (inRange(localDateOf(r.savedAt))) sum.reviews += REVIEW_POINTS
   return sum
 }
