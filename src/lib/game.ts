@@ -1,4 +1,4 @@
-import type { DayLog, FocusItem, Goal, Habit, HabitCheck, Task, TimeBlock } from '../db'
+import type { DayLog, FocusItem, FocusSession, Goal, Habit, HabitCheck, Task, TimeBlock, WeekReview } from '../db'
 import { checksByHabit, habitStreaks } from './habits'
 import { streaks } from './points'
 
@@ -59,6 +59,8 @@ export interface GameData {
   goals: Goal[]
   dayLogs: DayLog[]
   timeBlocks: TimeBlock[]
+  sessions: FocusSession[]
+  reviews: WeekReview[]
 }
 
 export interface Badge {
@@ -100,6 +102,8 @@ export function computeBadges(d: GameData, totalPoints: number, today: string): 
     { id: 'planner-10', emoji: '🗓️', title: 'Planer', description: '10 Zeitblöcke geplant', current: d.timeBlocks.length, target: 10 },
     { id: 'focus-week', emoji: '🎯', title: 'Volltreffer', description: 'Alle 3 Wochenfokus-Punkte einer Woche erledigt', current: perfectWeeks, target: 1 },
     { id: 'goal-1', emoji: '🏆', title: 'Ziel erreicht', description: 'Erstes Monatsziel erreicht', current: achievedGoals, target: 1 },
+    { id: 'focus-session-10', emoji: '⏱️', title: 'Tiefenfokus', description: '10 Fokus-Sitzungen abgeschlossen', current: d.sessions.length, target: 10 },
+    { id: 'week-review-4', emoji: '🗓️', title: 'Rückblicker', description: '4 Wochenrückblicke gemacht', current: d.reviews.length, target: 4 },
     { id: 'review-7', emoji: '🌙', title: 'Reflektiert', description: '7 Tagesbilanzen geschrieben', current: d.dayLogs.length, target: 7 },
     { id: 'level-5', emoji: '⭐', title: 'Profi', description: 'Level 5 erreicht', current: level, target: 5 },
     { id: 'level-10', emoji: '💎', title: 'Meisterhaft', description: 'Level 10 erreicht', current: level, target: 10 },

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { NavLink, Navigate, Route, Routes, useLocation } from 'react-router-dom'
+import { NavLink, Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-dom'
 import Heute from './pages/Heute'
 import Woche from './pages/Woche'
 import Aufgaben from './pages/Aufgaben'
@@ -9,9 +9,13 @@ import Statistik from './pages/Statistik'
 import Gewohnheiten from './pages/Gewohnheiten'
 import Ziele from './pages/Ziele'
 import Einstellungen from './pages/Einstellungen'
+import Suche from './pages/Suche'
+import Wochenrueckblick from './pages/Wochenrueckblick'
 import LevelBadge from './components/LevelBadge'
 import ReminderService from './components/ReminderService'
 import LoginDialog from './components/LoginDialog'
+import FocusBar from './components/FocusBar'
+import PushSync from './components/PushSync'
 import CloudStatus from './components/CloudStatus'
 import LegacyImportBanner from './components/LegacyImportBanner'
 
@@ -26,6 +30,8 @@ const navItems = [
   { to: '/gemeinsam', label: 'Gemeinsam', short: 'Gemeinsam', icon: '👥' },
   { to: '/gewohnheiten', label: 'Gewohnheiten', short: 'Routinen', icon: '🔁' },
   { to: '/ziele', label: 'Ziele', short: 'Ziele', icon: '🎯' },
+  { to: '/suche', label: 'Suche', short: 'Suche', icon: '🔍', more: true },
+  { to: '/wochenrueckblick', label: 'Wochenrückblick', short: 'Rückblick', icon: '🗓️', more: true },
   { to: '/statistik', label: 'Statistik', short: 'Statistik', icon: '📈', more: true },
   { to: '/einstellungen', label: 'Einstellungen', short: 'Einstellungen', icon: '⚙️', more: true },
 ]
@@ -50,10 +56,25 @@ export default function App() {
   // „Mehr“-Menü beim Seitenwechsel schließen
   useEffect(() => setMoreOpen(false), [pathname])
 
+  // Strg/⌘ + K öffnet überall die Suche
+  const navigate = useNavigate()
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault()
+        navigate('/suche')
+      }
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [navigate])
+
   return (
     <>
       <ReminderService />
       <LoginDialog />
+      <FocusBar />
+      <PushSync />
       <div className="min-h-dvh bg-slate-50 text-slate-900 dark:bg-slate-950 dark:text-slate-100 md:flex">
         {/* Seitenleiste (Desktop) / Leiste unten (Handy) */}
         <nav className="fixed inset-x-0 bottom-0 z-10 border-t border-slate-200 bg-white/90 backdrop-blur dark:border-slate-800 dark:bg-slate-900/90 md:static md:w-56 md:shrink-0 md:border-t-0 md:border-r">
@@ -119,6 +140,8 @@ export default function App() {
             <Route path="/ziele" element={<Ziele />} />
             <Route path="/statistik" element={<Statistik />} />
             <Route path="/einstellungen" element={<Einstellungen />} />
+            <Route path="/suche" element={<Suche />} />
+            <Route path="/wochenrueckblick" element={<Wochenrueckblick />} />
             <Route path="*" element={<Navigate to="/heute" replace />} />
           </Routes>
         </main>

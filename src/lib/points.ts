@@ -1,8 +1,14 @@
-import type { FocusItem, Goal, HabitCheck, Task } from '../db'
+import type { FocusItem, FocusSession, Goal, HabitCheck, Task, WeekReview } from '../db'
 import { addDays, localDateOf, todayISO } from './date'
 import { FOCUS_POINTS, GOAL_POINTS } from './goals'
 import { HABIT_POINTS } from './habits'
 import { pointsForMe } from './spaces'
+
+/** Punkte pro erledigter Aufgabe, nach Priorität. */
+/** Punkte pro abgeschlossener Fokus-Timer-Sitzung. */
+export const SESSION_POINTS = 10
+/** Punkte für einen abgeschlossenen Wochenrückblick. */
+export const REVIEW_POINTS = 25
 
 /** Punkte pro erledigter Aufgabe, nach Priorität. */
 export const POINTS_BY_PRIORITY: Record<Task['priority'], number> = { 1: 30, 2: 20, 3: 10 }
@@ -24,13 +30,15 @@ export interface PointSources {
   habitChecks?: HabitCheck[]
   focus?: FocusItem[]
   goals?: Goal[]
+  sessions?: FocusSession[]
+  reviews?: WeekReview[]
 }
 
 /**
  * Punkte pro Tag (Datum → Summe):
- * Aufgaben 30/20/10 · Gewohnheit 10 · Wochenfokus 25 · Monatsziel erreicht 100.
+ * Aufgaben 30/20/10 · Gewohnheit 10 · Wochenfokus 25 · Monatsziel erreicht 100 · Fokus-Sitzung 10 · Wochenrückblick 25.
  */
-export function pointsByDay({ tasks, me, habitChecks = [], focus = [], goals = [] }: PointSources): Map<string, number> {
+export function pointsByDay({ tasks, me, habitChecks = [], focus = [], goals = [], sessions = [], reviews = [] }: PointSources): Map<string, number> {
   const map = new Map<string, number>()
   const add = (date: string, pts: number) => map.set(date, (map.get(date) ?? 0) + pts)
   for (const t of tasks) {
@@ -40,6 +48,8 @@ export function pointsByDay({ tasks, me, habitChecks = [], focus = [], goals = [
   for (const c of habitChecks) add(c.date, HABIT_POINTS)
   for (const f of focus) if (f.doneAt) add(localDateOf(f.doneAt), FOCUS_POINTS)
   for (const g of goals) if (g.achievedAt) add(localDateOf(g.achievedAt), GOAL_POINTS)
+  for (const s of sessions) add(s.date, SESSION_POINTS)
+  for (const r of reviews) add(localDateOf(r.savedAt), REVIEW_POINTS)
   return map
 }
 
@@ -100,24 +110,36 @@ export function weekStart(date: string): string {
   return addDays(date, -weekday)
 }
 
+/** Welche Woche wird zurückgeblickt? Ab Freitag die laufende, Mo–Do die vergangene (Montag als Datum). */
+export function reviewWeekFor(today: string): string {
+  const monday = weekStart(today)
+  const [y, m, d] = today.split('-').map(Number)
+  const wd = (new Date(y, m - 1, d).getDay() + 6) % 7 // Mo = 0 … So = 6
+  return wd >= 4 ? monday : addDays(monday, -7)
+}
+
 export interface SourceTotals {
   tasks: number
   habits: number
   focus: number
   goals: number
+  sessions: number
+  reviews: number
 }
 
 /** Punkte je Quelle im Zeitraum [from, to] (lokale Daten, inklusive). */
 export function pointsBySource(
-  { tasks, me, habitChecks = [], focus = [], goals = [] }: PointSources,
+  { tasks, me, habitChecks = [], focus = [], goals = [], sessions = [], reviews = [] }: PointSources,
   from: string,
   to: string,
 ): SourceTotals {
   const inRange = (d?: string) => !!d && d >= from && d <= to
-  const sum: SourceTotals = { tasks: 0, habits: 0, focus: 0, goals: 0 }
+  const sum: SourceTotals = { tasks: 0, habits: 0, focus: 0, goals: 0, sessions: 0, reviews: 0 }
   for (const t of tasks) if (inRange(doneDate(t)) && pointsForMe(t, me)) sum.tasks += taskPoints(t)
   for (const c of habitChecks) if (inRange(c.date)) sum.habits += HABIT_POINTS
   for (const f of focus) if (f.doneAt && inRange(localDateOf(f.doneAt))) sum.focus += FOCUS_POINTS
   for (const g of goals) if (g.achievedAt && inRange(localDateOf(g.achievedAt))) sum.goals += GOAL_POINTS
+  for (const s of sessions) if (inRange(s.date)) sum.sessions += SESSION_POINTS
+  for (const r of reviews) if (inRange(localDateOf(r.savedAt))) sum.reviews += REVIEW_POINTS
   return sum
 }

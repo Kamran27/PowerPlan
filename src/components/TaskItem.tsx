@@ -20,6 +20,9 @@ import { scheduleTaskToday, TASK_DRAG_TYPE } from '../lib/timeblocks'
 import { repeatLabel, type Repeat } from '../lib/repeat'
 import RepeatSelect from './RepeatSelect'
 import TimeRangeInput from './TimeRangeInput'
+import { addSubtask, deleteSubtask, subtaskProgress, toggleSubtask } from '../lib/subtasks'
+import { startFocus, stopFocus, useFocus } from '../lib/focus'
+import { touchDragProps } from '../lib/touchDrag'
 import { useToggleTask } from './useToggleTask'
 import { useToast } from './Toast'
 
@@ -46,6 +49,8 @@ interface Props {
 export default function TaskItem({ task, scheduledAt, goals = [], spaces = [] }: Props) {
   const [editing, setEditing] = useState(false)
   const [editBlock, setEditBlock] = useState<TimeBlock | undefined>()
+  const [checklistOpen, setChecklistOpen] = useState(false)
+  const focus = useFocus()
   const toggle = useToggleTask()
   const toast = useToast()
 
@@ -78,6 +83,8 @@ export default function TaskItem({ task, scheduledAt, goals = [], spaces = [] }:
   const prio = priorityInfo(task.priority)
   const due = task.dueDate ? describeDue(task.dueDate) : null
   const goal = task.goalId ? goals.find((g) => g.id === task.goalId) : undefined
+  const progress = subtaskProgress(task.subtasks)
+  const focusing = focus?.taskId === task.id
 
   return (
     <li
@@ -86,10 +93,12 @@ export default function TaskItem({ task, scheduledAt, goals = [], spaces = [] }:
         e.dataTransfer.setData(TASK_DRAG_TYPE, String(task.id))
         e.dataTransfer.effectAllowed = 'copy'
       }}
-      className={`group flex items-start gap-3 rounded-xl px-3 py-2.5 hover:bg-slate-100/70 dark:hover:bg-slate-800/50 ${
+      {...touchDragProps(task)}
+      className={`group rounded-xl px-3 py-2.5 hover:bg-slate-100/70 dark:hover:bg-slate-800/50 ${
         task.done ? '' : 'cursor-grab active:cursor-grabbing'
-      }`}
+      } ${focusing ? 'ring-2 ring-amber-400' : ''}`}
     >
+      <div className="flex items-start gap-3">
       <input
         type="checkbox"
         checked={task.done}
@@ -102,7 +111,7 @@ export default function TaskItem({ task, scheduledAt, goals = [], spaces = [] }:
         {task.notes && !task.done && (
           <span className="mt-0.5 block truncate text-sm text-slate-500 dark:text-slate-400">{task.notes}</span>
         )}
-        {(due || task.priority !== 3 || scheduledAt || goal || space || task.repeat) && !task.done && (
+        {(due || task.priority !== 3 || scheduledAt || goal || space || task.repeat || progress) && !task.done && (
           <span className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-xs">
             {task.priority !== 3 && (
               <span className="flex items-center gap-1 text-slate-500 dark:text-slate-400">
@@ -113,6 +122,14 @@ export default function TaskItem({ task, scheduledAt, goals = [], spaces = [] }:
             {due && <span className={`font-medium ${dueColors[due.state]}`}>{due.label}</span>}
             {scheduledAt && <span className="text-emerald-600 dark:text-emerald-400">🕒 {scheduledAt} Uhr</span>}
             {task.repeat && <span className="text-violet-600 dark:text-violet-400">🔁 {repeatLabel(task.repeat)}</span>}
+            {progress && (
+              <span className="flex items-center gap-1.5 text-slate-600 dark:text-slate-300">
+                ☑️ {progress.done}/{progress.total}
+                <span className="h-1.5 w-12 overflow-hidden rounded-full bg-slate-200 dark:bg-slate-700">
+                  <span className="block h-full rounded-full bg-emerald-500" style={{ width: `${progress.pct}%` }} />
+                </span>
+              </span>
+            )}
             {goal && <span className="truncate text-slate-500 dark:text-slate-400">🎯 {goal.title}</span>}
             {space && (
               <span className="truncate text-sky-700 dark:text-sky-300">
@@ -125,6 +142,31 @@ export default function TaskItem({ task, scheduledAt, goals = [], spaces = [] }:
           </span>
         )}
       </button>
+      {!task.done && (
+        <button
+          onClick={() => setChecklistOpen((o) => !o)}
+          aria-label="Checkliste"
+          aria-expanded={checklistOpen}
+          title="Checkliste (Unteraufgaben)"
+          className={`rounded-md px-1.5 hover:text-indigo-600 focus:opacity-100 max-md:opacity-100 ${
+            checklistOpen || progress ? 'text-slate-500 opacity-100' : 'text-slate-400 opacity-0 group-hover:opacity-100'
+          }`}
+        >
+          ☑️
+        </button>
+      )}
+      {!task.done && (
+        <button
+          onClick={() => (focusing ? stopFocus() : startFocus(task))}
+          aria-label={focusing ? 'Fokus beenden' : 'Fokus-Timer starten'}
+          title={focusing ? 'Fokus beenden' : 'Fokus-Timer: konzentriert an dieser Aufgabe arbeiten'}
+          className={`rounded-md px-1.5 hover:text-amber-600 focus:opacity-100 max-md:opacity-100 ${
+            focusing ? 'text-amber-600 opacity-100' : 'text-slate-400 opacity-0 group-hover:opacity-100'
+          }`}
+        >
+          ⏱️
+        </button>
+      )}
       {!task.done && !scheduledAt && (
         <button
           onClick={schedule}
@@ -152,7 +194,57 @@ export default function TaskItem({ task, scheduledAt, goals = [], spaces = [] }:
       >
         ✕
       </button>
+      </div>
+      {checklistOpen && !task.done && <Checklist task={task} />}
     </li>
+  )
+}
+
+/** Unteraufgaben einer Aufgabe: abhaken, hinzufügen, löschen. */
+function Checklist({ task }: { task: Task }) {
+  const [title, setTitle] = useState('')
+  return (
+    <div className="mt-2 ml-8 border-l-2 border-slate-200 pl-3 dark:border-slate-700">
+      <ul className="grid gap-1">
+        {(task.subtasks ?? []).map((s) => (
+          <li key={s.id} className="group/sub flex items-center gap-2 text-sm">
+            <input
+              type="checkbox"
+              checked={s.done}
+              onChange={() => toggleSubtask(task, s.id)}
+              aria-label={s.done ? `${s.title} wieder öffnen` : `${s.title} abhaken`}
+              className="size-4 accent-emerald-600"
+            />
+            <span className={`flex-1 ${s.done ? 'text-slate-400 line-through' : ''}`}>{s.title}</span>
+            <button
+              onClick={() => deleteSubtask(task, s.id)}
+              aria-label={`${s.title} löschen`}
+              className="px-1 text-slate-400 opacity-0 group-hover/sub:opacity-100 hover:text-rose-600 max-md:opacity-100"
+            >
+              ✕
+            </button>
+          </li>
+        ))}
+      </ul>
+      <form
+        onSubmit={async (e) => {
+          e.preventDefault()
+          const t = title
+          setTitle('')
+          await addSubtask(task, t)
+        }}
+        className="mt-1"
+      >
+        <input
+          autoFocus={!task.subtasks?.length}
+          value={title}
+          onChange={(e) => setTitle(e.target.value)}
+          placeholder="+ Unteraufgabe (Enter)"
+          aria-label="Neue Unteraufgabe"
+          className="w-full bg-transparent py-1 text-sm outline-none placeholder:text-slate-400"
+        />
+      </form>
+    </div>
   )
 }
 

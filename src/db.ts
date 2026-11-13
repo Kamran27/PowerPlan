@@ -42,6 +42,15 @@ export interface Task {
    * bekommt die nächste Aufgabe automatisch die nächste Person als Zuständige.
    */
   rotation?: string[]
+  /** Checkliste innerhalb der Aufgabe */
+  subtasks?: Subtask[]
+}
+
+/** Ein Punkt der Checkliste in einer Aufgabe. */
+export interface Subtask {
+  id: string
+  title: string
+  done: boolean
 }
 
 /** Ein gemeinsamer Bereich, z. B. „Haushalt“ – geteilt über einen eigenen Realm. */
@@ -112,6 +121,27 @@ export interface Meal {
   /** Für wie viele Personen (für die Mengen auf der Einkaufsliste) */
   servings: number
   createdAt: string
+}
+
+/** Eine abgeschlossene Fokus-Sitzung (Fokus-Timer, ab Datenbank Version 5). */
+export interface FocusSession {
+  id: string
+  taskId?: string
+  title: string
+  /** Tag "JJJJ-MM-TT" (lokal) */
+  date: string
+  minutes: number
+  doneAt: string
+}
+
+/** Ein geführter Wochenrückblick (ab Datenbank Version 5). */
+export interface WeekReview {
+  id: string
+  /** Montag der zurückblickenden Woche "JJJJ-MM-TT" */
+  week: string
+  wentWell?: string
+  improve?: string
+  savedAt: string
 }
 
 /** Ein Zeitblock im Tagesplan (ab M2). Zeiten als "HH:MM". */
@@ -192,6 +222,8 @@ export const db = new Dexie('powerplan-cloud', { addons: [dexieCloud] }) as Dexi
   shoppingItems: EntityTable<ShoppingItem, 'id'>
   recipes: EntityTable<Recipe, 'id'>
   meals: EntityTable<Meal, 'id'>
+  focusSessions: EntityTable<FocusSession, 'id'>
+  weekReviews: EntityTable<WeekReview, 'id'>
 }
 
 // „@id“ = Dexie Cloud vergibt eine weltweit eindeutige Text-ID. Danach: Felder, nach denen gesucht wird.
@@ -224,6 +256,12 @@ db.version(3).stores({
 // Version 4: Essensplan (pro Bereich und Tag)
 db.version(4).stores({
   meals: '@id, spaceId, date, [spaceId+date]',
+})
+
+// Version 5: Fokus-Timer-Sitzungen und Wochenrückblicke
+db.version(5).stores({
+  focusSessions: '@id, date, taskId',
+  weekReviews: '@id, week',
 })
 
 db.cloud.configure({

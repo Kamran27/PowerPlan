@@ -5,6 +5,9 @@ import './index.css'
 import App from './App'
 import { ToastProvider } from './components/Toast'
 import GameProvider from './components/GameProvider'
+import { watchSystemTheme } from './lib/theme'
+
+watchSystemTheme()
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

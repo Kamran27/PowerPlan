@@ -3,6 +3,7 @@ import InstallAppCard from '../components/InstallAppCard'
 import PageHeader from '../components/PageHeader'
 import ReminderSettingsCard from '../components/ReminderSettingsCard'
 import AccountCard from '../components/AccountCard'
+import ThemeCard from '../components/ThemeCard'
 import { useToast } from '../components/Toast'
 import { exportBackup, readBackup, restoreBackup } from '../lib/backup'
 
@@ -69,6 +70,7 @@ export default function Einstellungen() {
     <div className="max-w-3xl">
       <PageHeader title="Einstellungen" />
       <AccountCard />
+      <ThemeCard />
       <section className="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-slate-200 dark:bg-slate-900 dark:ring-slate-800">
         <h2 className="font-semibold">Datensicherung</h2>
         <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">

@@ -1,9 +1,15 @@
 @import "tailwindcss";
 
+/* Dunkel-Modus per Klasse „dark“ auf <html> (gesetzt aus Einstellungen → Darstellung, Standard: wie das System) */
+@custom-variant dark (&:where(.dark, .dark *));
+
 @theme {
   --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
 }
 
 html {
-  color-scheme: light dark;
+  color-scheme: light;
+}
+html.dark {
+  color-scheme: dark;
 }

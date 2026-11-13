@@ -26,6 +26,8 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
+      # Tests zuerst: schlägt einer fehl, wird nichts veröffentlicht
+      - run: npm test
       - run: npm run build:github
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3

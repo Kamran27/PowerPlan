@@ -1,5 +1,6 @@
 import { useLiveQuery } from 'dexie-react-hooks'
 import { useMemo } from 'react'
+import { Link } from 'react-router-dom'
 import DayReview from '../components/DayReview'
 import DayTimeline from '../components/DayTimeline'
 import HabitsToday from '../components/HabitsToday'
@@ -9,7 +10,7 @@ import TaskList from '../components/TaskList'
 import WeekFocus from '../components/WeekFocus'
 import { db, type Task } from '../db'
 import { localDateOf, todayISO } from '../lib/date'
-import { streaks, weekStart } from '../lib/points'
+import { REVIEW_POINTS, reviewWeekFor, streaks, weekStart } from '../lib/points'
 import { useGame } from '../lib/gameContext'
 import { compareTasks } from '../lib/tasks'
 import { useDayBlocks, useScheduledTimes } from '../lib/useDayBlocks'
@@ -36,6 +37,11 @@ export default function Heute() {
 
   const allTasks = useLiveQuery(() => db.tasks.toArray(), [])
   // Heute geplantes Essen (Essensplan der gemeinsamen Bereiche)
+  // Wochenrückblick fällig? (Freitag bis Montag, solange noch nicht gemacht)
+  const reviewWeek = reviewWeekFor(today)
+  const reviewDone = useLiveQuery(() => db.weekReviews.where('week').equals(reviewWeek).count(), [reviewWeek])
+  const weekday = (now.getDay() + 6) % 7
+  const showReviewNudge = reviewDone === 0 && (weekday >= 4 || weekday === 0)
   const todaysMeals = useLiveQuery(() => db.meals.where('date').equals(today).toArray(), [today])
   const me = useMyEmail()
   const { habits, doneByHabit, loaded: habitsLoaded } = useHabits()
@@ -59,6 +65,22 @@ export default function Heute() {
   return (
     <>
       <PageHeader title={greeting(now.getHours())} subtitle={dateLabel} />
+
+      {showReviewNudge && (
+        <Link
+          to="/wochenrueckblick"
+          className="mb-4 flex items-center gap-3 rounded-2xl bg-indigo-50 p-4 text-sm ring-1 ring-indigo-200 hover:bg-indigo-100 dark:bg-indigo-500/10 dark:ring-indigo-500/30 dark:hover:bg-indigo-500/20"
+        >
+          <span className="text-2xl" aria-hidden>
+            🗓️
+          </span>
+          <span className="flex-1">
+            <strong>Zeit für deinen Wochenrückblick</strong>
+            <span className="block text-slate-600 dark:text-slate-300">5 Minuten: zurückschauen, Fokus setzen, Woche planen (+{REVIEW_POINTS} Punkte)</span>
+          </span>
+          <span aria-hidden>→</span>
+        </Link>
+      )}
 
       <section className="mb-6 rounded-2xl bg-white p-5 shadow-sm ring-1 ring-slate-200 dark:bg-slate-900 dark:ring-slate-800">
         <div className="flex items-baseline justify-between">

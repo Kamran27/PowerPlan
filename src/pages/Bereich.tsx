@@ -1,6 +1,6 @@
 import { useLiveQuery } from 'dexie-react-hooks'
 import { useEffect, useState, type FormEvent } from 'react'
-import { Link, useNavigate, useParams } from 'react-router-dom'
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import MealPlanView from '../components/MealPlanView'
 import RecipesPanel from '../components/RecipesPanel'
 import ShoppingListView from '../components/ShoppingListView'
@@ -32,7 +32,11 @@ export default function Bereich() {
   const tasks = useLiveQuery(() => db.tasks.where('spaceId').equals(spaceId).toArray(), [spaceId])
   const lists = useLiveQuery(() => db.shoppingLists.where('spaceId').equals(spaceId).sortBy('createdAt'), [spaceId])
   const me = useMyEmail()
-  const [tab, setTab] = useState<Tab>('aufgaben')
+  const [params] = useSearchParams()
+  const initialTab = params.get('tab')
+  const [tab, setTab] = useState<Tab>(
+    initialTab === 'einkauf' || initialTab === 'essen' || initialTab === 'mitglieder' ? initialTab : 'aufgaben',
+  )
   const [listId, setListId] = useState<string>()
   const [filter, setFilter] = useState<'alle' | 'meine' | 'offen'>('offen')
   const navigate = useNavigate()

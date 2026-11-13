@@ -9,7 +9,8 @@
     "build:github": "tsc -b && vite build --mode github && cp dist/index.html dist/404.html",
     "preview:github": "vite preview --mode github",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "test": "vitest run"
   },
   "dependencies": {
     "dexie": "^4.4.7",
@@ -33,6 +34,7 @@
     "typescript": "~5.8.3",
     "typescript-eslint": "^8.30.1",
     "vite": "^6.3.5",
-    "vite-plugin-pwa": "^1.0.3"
+    "vite-plugin-pwa": "^1.0.3",
+    "vitest": "^3.2.7"
   }
 }

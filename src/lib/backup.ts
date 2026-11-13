@@ -4,6 +4,7 @@ import {
   type FocusItem,
   type Goal,
   type Habit,
+  type FocusSession,
   type HabitCheck,
   type Meal,
   type Recipe,
@@ -12,6 +13,7 @@ import {
   type Space,
   type Task,
   type TimeBlock,
+  type WeekReview,
 } from '../db'
 import { importLegacyData, type LegacyData } from './legacy'
 import { createSpace } from './spaces'
@@ -19,9 +21,9 @@ import { createSpace } from './spaces'
 const FORMAT = 'powerplan-backup'
 /**
  * 1 = Aufgaben, Zeitblöcke, Tagesbilanzen · 2 = + Gewohnheiten · 3 = + Ziele und Wochenfokus
- * 4 = Cloud-Version: IDs sind Texte · 5 = + gemeinsame Bereiche, Einkaufslisten, Artikel und Rezepte · 6 = + Essensplan
+ * 4 = Cloud-Version: IDs sind Texte · 5 = + gemeinsame Bereiche, Einkaufslisten, Artikel und Rezepte · 6 = + Essensplan · 7 = + Fokus-Sitzungen, Wochenrückblicke
  */
-const VERSION = 6
+const VERSION = 7
 
 interface Backup {
   format: typeof FORMAT
@@ -40,6 +42,8 @@ interface Backup {
   shoppingItems: ShoppingItem[]
   recipes: Recipe[]
   meals: Meal[]
+  focusSessions: FocusSession[]
+  weekReviews: WeekReview[]
 }
 
 /** Alle Daten als JSON-Datei herunterladen. */
@@ -60,6 +64,8 @@ export async function exportBackup() {
     shoppingItems: await db.shoppingItems.toArray(),
     recipes: await db.recipes.toArray(),
     meals: await db.meals.toArray(),
+    focusSessions: await db.focusSessions.toArray(),
+    weekReviews: await db.weekReviews.toArray(),
   }
   const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' })
   const url = URL.createObjectURL(blob)
@@ -70,7 +76,7 @@ export async function exportBackup() {
   URL.revokeObjectURL(url)
 }
 
-/** Liest und prüft eine Backup-Datei (Version 1–6). Wirft einen Fehler mit deutscher Meldung, wenn ungültig. */
+/** Liest und prüft eine Backup-Datei (Version 1–7). Wirft einen Fehler mit deutscher Meldung, wenn ungültig. */
 export async function readBackup(file: File): Promise<Backup> {
   let data: unknown
   try {
@@ -102,6 +108,8 @@ export async function readBackup(file: File): Promise<Backup> {
     shoppingItems: list(b.shoppingItems),
     recipes: list(b.recipes),
     meals: list(b.meals),
+    focusSessions: list(b.focusSessions),
+    weekReviews: list(b.weekReviews),
   }
 }
 
@@ -121,7 +129,7 @@ function withoutId<T extends { id: string }>(o: T): Omit<T, 'id'> {
 
 /**
  * Übernimmt eine Sicherung in die (Cloud-)Datenbank. Es wird nichts gelöscht:
- * - Version 4–6: Einträge werden mit ihren IDs zurückgeschrieben (gleiche ID = aktualisieren)
+ * - Version 4–7: Einträge werden mit ihren IDs zurückgeschrieben (gleiche ID = aktualisieren)
  * - Version 1–3 (vor der Cloud): Einträge bekommen neue IDs, Verknüpfungen werden umgeschrieben
  *
  * Gemeinsame Bereiche (ab Version 5):
@@ -152,7 +160,7 @@ export async function restoreBackup(b: Backup): Promise<RestoreResult> {
     }
   }
 
-  const tables = [db.tasks, db.timeBlocks, db.dayLogs, db.habits, db.habitChecks, db.goals, db.weekFocus, db.shoppingLists, db.shoppingItems, db.recipes, db.meals]
+  const tables = [db.tasks, db.timeBlocks, db.dayLogs, db.habits, db.habitChecks, db.goals, db.weekFocus, db.shoppingLists, db.shoppingItems, db.recipes, db.meals, db.focusSessions, db.weekReviews]
   await db.transaction('rw', tables, async () => {
     // 2) Aufgaben – bei neu angelegten Bereichen mit neuer ID (Zeitblöcke werden umgehängt)
     const taskIdMap = new Map<string, string>()
@@ -182,6 +190,8 @@ export async function restoreBackup(b: Backup): Promise<RestoreResult> {
     await db.habitChecks.bulkPut(b.habitChecks)
     await db.goals.bulkPut(b.goals)
     await db.weekFocus.bulkPut(b.weekFocus)
+    await db.focusSessions.bulkPut(b.focusSessions)
+    await db.weekReviews.bulkPut(b.weekReviews)
 
     // 4) Einkaufslisten, Artikel, Rezepte
     const listIdMap = new Map<string, string>()

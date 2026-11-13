@@ -11,6 +11,14 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="default" />
     <meta name="apple-mobile-web-app-title" content="PowerPlan" />
     <title>PowerPlan</title>
+    <script>
+      // Hell/Dunkel sofort setzen (vor dem ersten Zeichnen, damit nichts aufblitzt) – siehe src/lib/theme.ts
+      try {
+        var t = localStorage.getItem('powerplan-theme') || 'system'
+        var dark = t === 'dark' || (t === 'system' && matchMedia('(prefers-color-scheme: dark)').matches)
+        document.documentElement.classList.toggle('dark', dark)
+      } catch (e) {}
+    </script>
   </head>
   <body>
     <div id="root"></div>

@@ -1,8 +1,9 @@
-import { useRef, useState, type DragEvent, type MouseEvent } from 'react'
+import { useEffect, useRef, useState, type DragEvent, type MouseEvent } from 'react'
 import type { Task, TimeBlock } from '../db'
 import { clamp, DAY_END, DAY_START, DEFAULT_DURATION, fromMinutes, GRID_HEIGHT, MAX_END, PX_PER_MIN, snap } from '../lib/time'
 import { updateTask } from '../lib/tasks'
 import { addBlock, layoutBlocks, TASK_DRAG_TYPE } from '../lib/timeblocks'
+import { registerDropTarget } from '../lib/touchDrag'
 import type { BlockDraft } from './BlockEditor'
 import TimeBlockCard from './TimeBlockCard'
 
@@ -53,16 +54,34 @@ export default function DayColumn({ date, blocks, tasks, now, onOpen, className 
     if (!e.currentTarget.contains(e.relatedTarget as Node)) setDropAt(null)
   }
 
+  async function scheduleAt(task: Task, start: number) {
+    await addBlock({ date, start: fromMinutes(start), end: fromMinutes(start + DEFAULT_DURATION), title: task.title, taskId: task.id })
+    // Aufgabe ohne Fälligkeit bekommt den Tag, an dem sie eingeplant wurde
+    if (!task.dueDate) await updateTask(task.id, { dueDate: date })
+  }
+
   async function onDrop(e: DragEvent) {
     e.preventDefault()
     const start = dropAt ?? startAt(e.clientY, 15)
     setDropAt(null)
     const task = tasks.get(e.dataTransfer.getData(TASK_DRAG_TYPE))
     if (!task) return
-    await addBlock({ date, start: fromMinutes(start), end: fromMinutes(start + DEFAULT_DURATION), title: task.title, taskId: task.id })
-    // Aufgabe ohne Fälligkeit bekommt den Tag, an dem sie eingeplant wurde
-    if (!task.dueDate) await updateTask(task.id, { dueDate: date })
+    await scheduleAt(task, start)
   }
+
+  // Finger-Drag (Handy): diese Spalte als Ablagefläche anmelden
+  const dropRef = useRef({ scheduleAt, minutesAt })
+  dropRef.current = { scheduleAt, minutesAt }
+  useEffect(() => {
+    const el = areaRef.current
+    if (!el) return
+    const at = (y: number) => clamp(snap(dropRef.current.minutesAt(y) - 15), DAY_START, MAX_END - 15)
+    return registerDropTarget({
+      el,
+      over: (y) => setDropAt(y === null ? null : at(y)),
+      drop: (task, y) => void dropRef.current.scheduleAt(task, at(y)),
+    })
+  }, [])
 
   return (
     <div

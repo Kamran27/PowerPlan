@@ -21,10 +21,12 @@ export default function GameProvider({ children }: { children: ReactNode }) {
   const goals = useLiveQuery(() => db.goals.toArray(), [])
   const dayLogs = useLiveQuery(() => db.dayLogs.toArray(), [])
   const timeBlocks = useLiveQuery(() => db.timeBlocks.toArray(), [])
+  const sessions = useLiveQuery(() => db.focusSessions.toArray(), [])
+  const reviews = useLiveQuery(() => db.weekReviews.toArray(), [])
   const toast = useToast()
   const me = useMyEmail()
 
-  const loaded = [tasks, habits, habitChecks, focus, goals, dayLogs, timeBlocks].every((x) => x !== undefined)
+  const loaded = [tasks, habits, habitChecks, focus, goals, dayLogs, timeBlocks, sessions, reviews].every((x) => x !== undefined)
 
   const state = useMemo<GameState>(() => {
     const data: GameData = {
@@ -36,12 +38,14 @@ export default function GameProvider({ children }: { children: ReactNode }) {
       goals: goals ?? [],
       dayLogs: dayLogs ?? [],
       timeBlocks: timeBlocks ?? [],
+      sessions: sessions ?? [],
+      reviews: reviews ?? [],
     }
-    const byDay = pointsByDay({ tasks: tasks ?? [], me, habitChecks: data.habitChecks, focus: data.focus, goals: data.goals })
+    const byDay = pointsByDay({ tasks: tasks ?? [], me, habitChecks: data.habitChecks, focus: data.focus, goals: data.goals, sessions: data.sessions, reviews: data.reviews })
     let total = 0
     for (const p of byDay.values()) total += p
     return { loaded, me, data, byDay, total, level: levelInfo(total), badges: computeBadges(data, total, todayISO()) }
-  }, [loaded, me, tasks, habits, habitChecks, focus, goals, dayLogs, timeBlocks])
+  }, [loaded, me, tasks, habits, habitChecks, focus, goals, dayLogs, timeBlocks, sessions, reviews])
 
   // Neue Level und Abzeichen melden (gemerkt pro Browser, damit nichts doppelt kommt).
   useEffect(() => {

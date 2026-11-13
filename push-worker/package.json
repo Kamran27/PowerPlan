@@ -1,0 +1,14 @@
+{
+  "name": "powerplan-push",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "deploy": "wrangler deploy",
+    "dev": "wrangler dev --test-scheduled",
+    "db:init": "wrangler d1 execute powerplan-push --remote --file=schema.sql"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^5.20261110.1",
+    "wrangler": "^4"
+  }
+}

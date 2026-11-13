@@ -1,0 +1,18 @@
+# Cloudflare Worker für Push-Erinnerungen (kostenloser Tarif reicht)
+name = "powerplan-push"
+main = "src/index.ts"
+compatibility_date = "2025-06-01"
+
+# Jede Minute fällige Erinnerungen senden
+[triggers]
+crons = ["* * * * *"]
+
+[vars]
+ALLOWED_ORIGINS = "https://kamran27.github.io,http://localhost:5173,http://localhost:4173,http://localhost:4174"
+VAPID_SUBJECT = "https://kamran27.github.io/PowerPlan/"
+VAPID_PUBLIC_KEY = "WIRD_BEIM_EINRICHTEN_GESETZT"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "powerplan-push"
+database_id = "WIRD_BEIM_EINRICHTEN_GESETZT"

@@ -36,6 +36,7 @@ export default defineConfig(({ mode }) => {
         workbox: {
           globPatterns: ['**/*.{js,css,html,png,svg,ico}'],
           navigateFallback: `${base}index.html`, // alle Seiten (/heute, /ziele …) funktionieren offline
+          importScripts: ['push-sw.js'], // Push-Erinnerungen (public/push-sw.js)
         },
       }),
     ],
