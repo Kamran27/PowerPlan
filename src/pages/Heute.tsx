@@ -1,9 +1,12 @@
 import { useLiveQuery } from 'dexie-react-hooks'
-import { useMemo } from 'react'
-import { Flame, Star, Trophy, UtensilsCrossed } from 'lucide-react'
+import { useEffect, useMemo } from 'react'
+import { PeekingCat } from '../components/Cats'
+import { celebrateOnce, pawConfetti } from '../lib/celebrate'
+import { Flame, Shield, ShieldCheck, Star, Trophy, UtensilsCrossed } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import DayRings, { type Ring } from '../components/DayRings'
 import NextUp from '../components/NextUp'
+import MorningBrief from '../components/MorningBrief'
 import { defaultMinutes } from '../lib/focus'
 import { isDueOn } from '../lib/habits'
 import DayReview from '../components/DayReview'
@@ -78,6 +81,10 @@ export default function Heute() {
     { label: 'Fokus', value: focusMinutes / focusGoal, detail: `${focusMinutes} / ${focusGoal} Min.`, color: 'stroke-amber-500', track: 'stroke-amber-100 dark:stroke-amber-500/20', dot: 'bg-amber-500' },
   ]
   const allRingsClosed = total > 0 && rings.every((r) => r.value >= 1)
+  // Einmal am Tag feiern, wenn alle Ringe zu sind
+  useEffect(() => {
+    if (allRingsClosed) celebrateOnce('rings', today, () => pawConfetti(36))
+  }, [allRingsClosed, today])
 
   return (
     <>
@@ -99,14 +106,17 @@ export default function Heute() {
         </Link>
       )}
 
+      <MorningBrief today={today} open={openTasks} blocks={blocks ?? []} habitsDue={habitsDue.length} meals={todaysMeals ?? []} />
       {blocks && <NextUp blocks={blocks} tasks={tasksById} />}
 
-      <section className="mb-6 rounded-3xl bg-white p-5 shadow-sm ring-1 ring-slate-200 md:p-6 dark:bg-slate-900 dark:ring-slate-800">
+      <section className="relative mt-8 mb-6 rounded-3xl bg-white p-5 shadow-sm ring-1 ring-slate-200 md:p-6 dark:bg-slate-900 dark:ring-slate-800">
+        {/* Katze schaut über den Rand */}
+        <PeekingCat className="absolute -top-[25px] right-8 w-12 text-slate-400 dark:text-slate-500" />
         <div className="flex flex-wrap items-center justify-between gap-4">
           <DayRings rings={rings} />
           {allRingsClosed && (
             <p className="rounded-xl bg-emerald-50 px-3 py-2 text-sm font-medium text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-300">
-              Alle Ringe geschlossen – starker Tag! 🎉
+              Alle Ringe geschlossen – starker Tag! 🐾
             </p>
           )}
         </div>
@@ -115,8 +125,20 @@ export default function Heute() {
             <Trophy aria-hidden className="size-4 text-amber-500" /> <strong className="tabular-nums">{pointsToday}</strong> Punkte heute
           </span>
           <span className="flex items-center gap-1.5" title={`Bester Streak: ${streak.best} ${streak.best === 1 ? 'Tag' : 'Tage'}`}>
-            <Flame aria-hidden className="size-4 text-orange-500" /> <strong className="tabular-nums">{streak.current}</strong>{' '}
-            {streak.current === 1 ? 'Tag' : 'Tage'} Streak
+            {/* Flamme wächst mit dem Streak */}
+            <Flame
+              aria-hidden
+              className={`text-orange-500 transition-transform ${streak.current >= 7 ? 'fill-orange-400/40' : ''}`}
+              style={{ width: 16, height: 16, transform: `scale(${Math.min(1.6, 1 + streak.current * 0.06)})` }}
+            />{' '}
+            <strong className="tabular-nums">{streak.current}</strong> {streak.current === 1 ? 'Tag' : 'Tage'} Streak
+          </span>
+          <span
+            className={`flex items-center gap-1 text-xs ${streak.shieldLeftThisWeek ? 'text-sky-600 dark:text-sky-400' : 'text-slate-400'}`}
+            title="Streak-Schutz: Pro Woche darf ein Tag ausfallen, ohne dass dein Streak reißt."
+          >
+            {streak.shieldLeftThisWeek ? <Shield aria-hidden className="size-3.5" /> : <ShieldCheck aria-hidden className="size-3.5" />}
+            {streak.shieldLeftThisWeek ? 'Schutz bereit' : 'Schutz genutzt'}
           </span>
           <span className="flex items-center gap-1.5" title={`Noch ${game.level.needed - game.level.into} Punkte bis Level ${game.level.level + 1}`}>
             <Star aria-hidden className="size-4 text-indigo-500" /> Level <strong className="tabular-nums">{game.level.level}</strong>{' '}

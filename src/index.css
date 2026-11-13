@@ -84,3 +84,19 @@ body {
   .sheet-backdrop, .sheet-panel, .page-in, .check-pop:checked { animation: none; }
   ::view-transition-group(*), ::view-transition-old(*), ::view-transition-new(*) { animation: none !important; }
 }
+
+/* Katzen: gelegentliches Blinzeln, schwebende Zzz */
+@keyframes pp-blink { 0%, 92%, 100% { transform: scaleY(1); } 95% { transform: scaleY(0.1); } }
+.cat-blink { transform-box: fill-box; transform-origin: center; animation: pp-blink 6s ease-in-out infinite; }
+@keyframes pp-zzz { 0%, 100% { opacity: 0.35; transform: translateY(0); } 50% { opacity: 0.9; transform: translateY(-1.5px); } }
+.cat-zzz { animation: pp-zzz 3s ease-in-out infinite; }
+
+/* Feiern: aufsteigende Punkte, fallende Pfoten */
+@keyframes pp-float-up { from { opacity: 0; transform: translate(-50%, 0) scale(0.8); } 15% { opacity: 1; transform: translate(-50%, -6px) scale(1.05); } to { opacity: 0; transform: translate(-50%, -48px) scale(1); } }
+.float-points { position: fixed; z-index: 60; pointer-events: none; font-weight: 700; font-size: 15px; animation: pp-float-up 1.1s ease-out forwards; }
+@keyframes pp-paw-fall { to { transform: translate(var(--dx), 105vh) rotate(var(--rot)); opacity: 0.9; } }
+.paw-confetti { position: fixed; top: -30px; z-index: 60; pointer-events: none; animation: pp-paw-fall var(--dur) cubic-bezier(0.25, 0.6, 0.5, 1) forwards; }
+
+@media (prefers-reduced-motion: reduce) {
+  .cat-blink, .cat-zzz { animation: none; }
+}

@@ -184,3 +184,19 @@ describe('Personen', () => {
     expect(personColorIndex('anna@example.com')).toBe(personColorIndex('ANNA@example.com'))
   })
 })
+
+describe('Streak-Schutz', () => {
+  const t = (due: string, done?: string) =>
+    ({ id: due, title: '', priority: 2, done: !!done, doneAt: done ? `${done}T10:00:00` : undefined, dueDate: due, createdAt: '' }) as Task
+  it('lässt pro Woche einen verpassten Tag zu, ein zweiter bricht den Streak', () => {
+    // Mo–Mi erledigt, Do verpasst (geschützt), Fr erledigt → Streak 4
+    const week = [t('2026-11-09', '2026-11-09'), t('2026-11-10', '2026-11-10'), t('2026-11-11', '2026-11-11'), t('2026-11-12'), t('2026-11-13', '2026-11-13')]
+    const r = streaks(week, '2026-11-13')
+    expect(r.current).toBe(4)
+    expect(r.protectedDays).toEqual(['2026-11-12'])
+    expect(r.shieldLeftThisWeek).toBe(false)
+    // zusätzlich Di verpasst → zweiter Ausfall bricht: nur Fr + Mi (Do geschützt) zählen
+    const twice = week.map((x) => (x.id === '2026-11-10' ? t('2026-11-10') : x))
+    expect(streaks(twice, '2026-11-13').current).toBe(2)
+  })
+})

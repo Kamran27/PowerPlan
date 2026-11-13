@@ -1,6 +1,7 @@
 import { useLiveQuery } from 'dexie-react-hooks'
 import { useMemo, useState } from 'react'
 import PageHeader from '../components/PageHeader'
+import YearHeatmap from '../components/YearHeatmap'
 import { BadgeGrid, HabitRates, LevelCard, PointsBySource } from '../components/StatsExtras'
 import { db } from '../db'
 import { addDays, todayISO } from '../lib/date'
@@ -61,6 +62,8 @@ export default function Statistik() {
       <PageHeader title="Statistik" subtitle="Dein Fortschritt über die Zeit." />
 
       <LevelCard />
+
+      <YearHeatmap byDay={byDay} today={today} protectedDays={stats.streak.protectedDays} />
 
       {/* Kennzahlen */}
       <dl className="grid grid-cols-2 gap-3 sm:grid-cols-4">

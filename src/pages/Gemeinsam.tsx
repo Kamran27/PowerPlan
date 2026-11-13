@@ -2,6 +2,7 @@ import { useLiveQuery, useObservable } from 'dexie-react-hooks'
 import { useState, type FormEvent } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import PageHeader from '../components/PageHeader'
+import RecentlyDone from '../components/RecentlyDone'
 import { useToast } from '../components/Toast'
 import { db } from '../db'
 import { createSpace, shortName } from '../lib/spaces'
@@ -123,6 +124,8 @@ export default function Gemeinsam() {
           )
         })}
       </ul>
+
+      <RecentlyDone />
     </div>
   )
 }

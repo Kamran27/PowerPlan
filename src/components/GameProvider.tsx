@@ -9,6 +9,7 @@ import { readStore, writeStore } from '../lib/storage'
 import { visibleForMe } from '../lib/spaces'
 import { useMyEmail } from '../lib/useMe'
 import { useToast } from './Toast'
+import { pawConfetti } from '../lib/celebrate'
 
 const SEEN_KEY = 'powerplan.seen' // { level: number, badges: string[] }
 
@@ -60,6 +61,7 @@ export default function GameProvider({ children }: { children: ReactNode }) {
       const fresh = state.badges.filter((b) => b.unlocked && !seen.badges.includes(b.id))
       if (state.level.level > seen.level) {
         toast(`🎉 Level ${state.level.level} erreicht – ${state.level.title}!`)
+        pawConfetti(40)
       } else if (fresh.length === 1) {
         toast(`🏅 Neues Abzeichen: ${fresh[0].emoji} ${fresh[0].title}`)
       } else if (fresh.length > 1) {

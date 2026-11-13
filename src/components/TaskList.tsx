@@ -1,6 +1,7 @@
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db, type Task } from '../db'
 import TaskItem from './TaskItem'
+import { SleepingCat } from './Cats'
 
 interface Props {
   tasks: Task[]
@@ -16,7 +17,12 @@ export default function TaskList({ tasks, empty, scheduled }: Props) {
   const spaces = useLiveQuery(() => db.spaces.toArray(), []) ?? []
 
   if (tasks.length === 0) {
-    return <p className="px-3 py-8 text-center text-sm text-slate-500 dark:text-slate-400">{empty}</p>
+    return (
+      <div className="px-3 py-8 text-center text-sm text-slate-500 dark:text-slate-400">
+        <SleepingCat className="mx-auto mb-2 w-24 text-slate-300 dark:text-slate-600" />
+        {empty}
+      </div>
+    )
   }
   return (
     <ul className="grid gap-0.5">

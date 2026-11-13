@@ -44,6 +44,8 @@ export interface Task {
   rotation?: string[]
   /** Checkliste innerhalb der Aufgabe */
   subtasks?: Subtask[]
+  /** 👏 „Gut gemacht“ – E-Mails der Personen, die die erledigte Aufgabe gefeiert haben */
+  kudos?: string[]
 }
 
 /** Ein Punkt der Checkliste in einer Aufgabe. */

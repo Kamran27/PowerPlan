@@ -22,8 +22,11 @@ import { repeatLabel, type Repeat } from '../lib/repeat'
 import RepeatSelect from './RepeatSelect'
 import TimeRangeInput from './TimeRangeInput'
 import Avatar from './Avatar'
+import { floatPoints } from '../lib/celebrate'
+import { canGiveKudos, toggleKudos } from '../lib/kudos'
+import { taskPoints } from '../lib/points'
 import BottomSheet from './BottomSheet'
-import { useIsMobile } from '../lib/useIsMobile'
+import { haptic, useIsMobile } from '../lib/useIsMobile'
 import { SWIPE_THRESHOLD, useSwipe } from '../lib/useSwipe'
 import { addSubtask, deleteSubtask, subtaskProgress, toggleSubtask } from '../lib/subtasks'
 import { startFocus, stopFocus, useFocus } from '../lib/focus'
@@ -144,7 +147,14 @@ export default function TaskItem({ task, scheduledAt, goals = [], spaces = [] }:
       <input
         type="checkbox"
         checked={task.done}
-        onChange={() => toggle(task)}
+        onChange={(e) => {
+          // „+20“ steigt vom Häkchen auf
+          if (!task.done) {
+            const r = e.currentTarget.getBoundingClientRect()
+            floatPoints(r.left + r.width / 2, r.top, `+${taskPoints(task)}`)
+          }
+          toggle(task)
+        }}
         aria-label={task.done ? 'Als offen markieren' : 'Als erledigt markieren'}
         className="check-pop mt-0.5 size-5 shrink-0 cursor-pointer accent-indigo-600"
       />
@@ -200,6 +210,32 @@ export default function TaskItem({ task, scheduledAt, goals = [], spaces = [] }:
           </span>
         )}
       </button>
+      {/* 👏 für Erledigtes anderer – bzw. Anzeige, wer mich gefeiert hat */}
+      {canGiveKudos(task, me) && (
+        <button
+          onClick={async (e) => {
+            const r = e.currentTarget.getBoundingClientRect()
+            const given = await toggleKudos(task, me!)
+            if (given) {
+              floatPoints(r.left + r.width / 2, r.top, '👏')
+              haptic(10)
+            }
+          }}
+          aria-pressed={!!task.kudos?.includes(me!)}
+          aria-label={`${shortName(task.doneBy)} applaudieren`}
+          title={`${shortName(task.doneBy)} hat das erledigt – gut gemacht sagen`}
+          className={`rounded-full px-2 py-0.5 text-sm ring-1 transition ${
+            task.kudos?.includes(me!) ? 'bg-amber-100 ring-amber-300 dark:bg-amber-500/20 dark:ring-amber-500/40' : 'ring-slate-200 grayscale hover:grayscale-0 dark:ring-slate-700'
+          }`}
+        >
+          👏
+        </button>
+      )}
+      {task.done && task.doneBy === me && !!task.kudos?.length && (
+        <span className="flex items-center gap-1 text-xs text-amber-700 dark:text-amber-300" title="Applaus bekommen">
+          👏 {task.kudos.map((k) => <Avatar key={k} email={k} size="sm" me={me} />)}
+        </span>
+      )}
       {!task.done && (
         <button
           onClick={() => setChecklistOpen((o) => !o)}

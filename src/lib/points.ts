@@ -75,22 +75,38 @@ export function dayStatus(tasks: Task[], date: string, today = todayISO()): DayS
   return date >= today ? 'open' : 'missed'
 }
 
-/** Aktueller und bester Streak (Anzahl erfüllter Tage in Folge; neutrale Tage werden übersprungen). */
-export function streaks(tasks: Task[], today = todayISO()): { current: number; best: number } {
+/**
+ * Aktueller und bester Streak (Anzahl erfüllter Tage in Folge; neutrale Tage werden übersprungen).
+ * 🛡️ Streak-Schutz: Pro Kalenderwoche darf ein Tag ausfallen, ohne dass der Streak reißt –
+ * er zählt dann wie ein neutraler Tag (nicht mit, bricht aber nichts).
+ */
+export function streaks(
+  tasks: Task[],
+  today = todayISO(),
+): { current: number; best: number; protectedDays: string[]; shieldLeftThisWeek: boolean } {
   const dates = tasks.map((t) => t.dueDate).filter((d): d is string => !!d && d <= today)
-  if (dates.length === 0) return { current: 0, best: 0 }
+  if (dates.length === 0) return { current: 0, best: 0, protectedDays: [], shieldLeftThisWeek: true }
   const earliest = dates.reduce((a, b) => (a < b ? a : b))
 
   let current = 0
   let best = 0
   let run = 0
   let currentDone = false
+  const usedWeeks = new Set<string>()
+  const protectedDays: string[] = []
   // Rückwärts von heute bis zum ersten Fälligkeitstag.
   for (let d = today; d >= earliest; d = addDays(d, -1)) {
     const s = dayStatus(tasks, d, today)
     if (s === 'fulfilled') {
       run++
     } else if (s === 'missed') {
+      const week = weekStart(d)
+      if (!usedWeeks.has(week)) {
+        // Schutz dieser Woche verbrauchen – Streak läuft weiter
+        usedWeeks.add(week)
+        protectedDays.push(d)
+        continue
+      }
       if (!currentDone) {
         current = run
         currentDone = true
@@ -102,7 +118,7 @@ export function streaks(tasks: Task[], today = todayISO()): { current: number; b
   }
   if (!currentDone) current = run
   best = Math.max(best, run)
-  return { current, best }
+  return { current, best, protectedDays, shieldLeftThisWeek: !usedWeeks.has(weekStart(today)) }
 }
 
 /** Montag der Woche eines Datums (ISO-Woche). */

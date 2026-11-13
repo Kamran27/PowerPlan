@@ -12,6 +12,7 @@ import {
   suggest,
   type Suggestion,
 } from '../lib/shopping'
+import { SleepingCat } from './Cats'
 import { addShoppingItem, clearDoneItems, deleteShoppingItem, toggleShoppingItem, updateShoppingItem } from '../lib/spaces'
 
 const field = 'rounded-lg border border-slate-200 bg-white text-sm dark:border-slate-700 dark:bg-slate-800'
@@ -104,7 +105,10 @@ export default function ShoppingListView({ list }: { list: ShoppingList }) {
       )}
 
       {items && open.length === 0 && done.length === 0 && (
-        <p className="py-6 text-center text-sm text-slate-500 dark:text-slate-400">Die Liste ist leer. 🛒</p>
+        <div className="py-6 text-center text-sm text-slate-500 dark:text-slate-400">
+          <SleepingCat className="mx-auto mb-2 w-20 text-slate-300 dark:text-slate-600" />
+          Die Liste ist leer.
+        </div>
       )}
 
       {groups.map((g) => {
