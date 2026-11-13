@@ -1,4 +1,4 @@
-import { CalendarClock, Clock, ListChecks, Repeat as RepeatIcon, SkipForward, Timer, X } from 'lucide-react'
+import { CalendarClock, Check, Clock, ListChecks, Repeat as RepeatIcon, SkipForward, Timer, X } from 'lucide-react'
 import { useState, type FormEvent } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db, type Goal, type Space, type Task, type TimeBlock } from '../db'
@@ -22,6 +22,9 @@ import { repeatLabel, type Repeat } from '../lib/repeat'
 import RepeatSelect from './RepeatSelect'
 import TimeRangeInput from './TimeRangeInput'
 import Avatar from './Avatar'
+import BottomSheet from './BottomSheet'
+import { useIsMobile } from '../lib/useIsMobile'
+import { SWIPE_THRESHOLD, useSwipe } from '../lib/useSwipe'
 import { addSubtask, deleteSubtask, subtaskProgress, toggleSubtask } from '../lib/subtasks'
 import { startFocus, stopFocus, useFocus } from '../lib/focus'
 import { touchDragProps } from '../lib/touchDrag'
@@ -53,6 +56,7 @@ export default function TaskItem({ task, scheduledAt, goals = [], spaces = [] }:
   const [editBlock, setEditBlock] = useState<TimeBlock | undefined>()
   const [checklistOpen, setChecklistOpen] = useState(false)
   const me = useMyEmail()
+  const isMobile = useIsMobile()
   const focus = useFocus()
   const toggle = useToggleTask()
   const toast = useToast()
@@ -81,7 +85,20 @@ export default function TaskItem({ task, scheduledAt, goals = [], spaces = [] }:
   }
 
   const space = task.spaceId ? spaces.find((s) => s.id === task.spaceId) : undefined
-  if (editing) return <TaskEditor task={task} block={editBlock} goals={goals} space={space} onClose={() => setEditing(false)} />
+  // Wischen am Handy: rechts = erledigt / wieder offen, links = auf morgen (nur offene)
+  const swipe = useSwipe({
+    enabled: isMobile,
+    onRight: () => toggle(task),
+    onLeft: task.done ? undefined : toTomorrow,
+  })
+
+  // Computer: Bearbeiten direkt in der Liste. Handy: als Fenster von unten (siehe unten im Rückgabewert).
+  if (editing && !isMobile)
+    return (
+      <li>
+        <TaskEditor task={task} block={editBlock} goals={goals} space={space} onClose={() => setEditing(false)} />
+      </li>
+    )
 
   const prio = priorityInfo(task.priority)
   const due = task.dueDate ? describeDue(task.dueDate) : null
@@ -97,17 +114,39 @@ export default function TaskItem({ task, scheduledAt, goals = [], spaces = [] }:
         e.dataTransfer.effectAllowed = 'copy'
       }}
       {...touchDragProps(task)}
-      className={`group rounded-xl px-3 py-2.5 hover:bg-slate-100/70 dark:hover:bg-slate-800/50 ${
-        task.done ? '' : 'cursor-grab active:cursor-grabbing'
-      } ${focusing ? 'ring-2 ring-amber-400' : ''}`}
+      style={{ ...touchDragProps(task).style, viewTransitionName: `task-${task.id.replace(/[^a-zA-Z0-9_-]/g, '-')}` }}
+      className={`group relative overflow-hidden rounded-xl ${task.done ? '' : 'cursor-grab active:cursor-grabbing'} ${focusing ? 'ring-2 ring-amber-400' : ''}`}
     >
-      <div className="flex items-start gap-3">
+      {/* Hintergrund beim Wischen: was beim Loslassen passiert */}
+      {swipe.swiping && (
+        <div
+          aria-hidden
+          className={`absolute inset-0 flex items-center px-4 text-sm font-semibold text-white ${
+            swipe.dx > 0 ? 'justify-start bg-emerald-500' : 'justify-end bg-indigo-500'
+          } ${Math.abs(swipe.dx) >= SWIPE_THRESHOLD ? '' : 'opacity-60'}`}
+        >
+          {swipe.dx > 0 ? (
+            <span className="flex items-center gap-1.5">
+              <Check className="size-5" /> {task.done ? 'Wieder offen' : 'Erledigt'}
+            </span>
+          ) : (
+            <span className="flex items-center gap-1.5">
+              Morgen <SkipForward className="size-5" />
+            </span>
+          )}
+        </div>
+      )}
+      <div
+        {...swipe.handlers}
+        className={`relative flex items-start gap-3 px-3 py-2.5 ${swipe.swiping ? 'bg-white dark:bg-slate-950' : 'transition-transform duration-200 hover:bg-slate-100/70 dark:hover:bg-slate-800/50'}`}
+        style={{ transform: swipe.dx ? `translateX(${swipe.dx}px)` : undefined, touchAction: 'pan-y' }}
+      >
       <input
         type="checkbox"
         checked={task.done}
         onChange={() => toggle(task)}
         aria-label={task.done ? 'Als offen markieren' : 'Als erledigt markieren'}
-        className="mt-0.5 size-5 shrink-0 cursor-pointer accent-indigo-600"
+        className="check-pop mt-0.5 size-5 shrink-0 cursor-pointer accent-indigo-600"
       />
       <button onClick={openEditor} className="min-w-0 flex-1 text-left" title="Bearbeiten">
         <span className={task.done ? 'text-slate-400 line-through dark:text-slate-500' : ''}>{task.title}</span>
@@ -215,6 +254,11 @@ export default function TaskItem({ task, scheduledAt, goals = [], spaces = [] }:
       </button>
       </div>
       {checklistOpen && !task.done && <Checklist task={task} />}
+      {isMobile && (
+        <BottomSheet open={editing} onClose={() => setEditing(false)} title="Aufgabe bearbeiten">
+          <TaskEditor task={task} block={editBlock} goals={goals} space={space} onClose={() => setEditing(false)} inSheet />
+        </BottomSheet>
+      )}
     </li>
   )
 }
@@ -273,12 +317,15 @@ function TaskEditor({
   goals,
   space,
   onClose,
+  inSheet,
 }: {
   task: Task
   block?: TimeBlock
   goals: Goal[]
   space?: Space
   onClose: () => void
+  /** Im Fenster von unten: ohne eigenen Rahmen */
+  inSheet?: boolean
 }) {
   const [title, setTitle] = useState(task.title)
   const [notes, setNotes] = useState(task.notes ?? '')
@@ -321,7 +368,7 @@ function TaskEditor({
   }
 
   return (
-    <li className="rounded-xl bg-white p-3 shadow-sm ring-1 ring-indigo-300 dark:bg-slate-900 dark:ring-indigo-500/50">
+    <div className={inSheet ? '' : 'rounded-xl bg-white p-3 shadow-sm ring-1 ring-indigo-300 dark:bg-slate-900 dark:ring-indigo-500/50'}>
       <form onSubmit={save} onKeyDown={(e) => e.key === 'Escape' && onClose()} className="grid gap-2">
         <input
           autoFocus
@@ -428,6 +475,6 @@ function TaskEditor({
           </div>
         </div>
       </form>
-    </li>
+    </div>
   )
 }

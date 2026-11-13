@@ -17,6 +17,7 @@ import ReminderService from './components/ReminderService'
 import LoginDialog from './components/LoginDialog'
 import FocusBar from './components/FocusBar'
 import PushSync from './components/PushSync'
+import QuickAddFab from './components/QuickAddFab'
 import CloudStatus from './components/CloudStatus'
 import LegacyImportBanner from './components/LegacyImportBanner'
 
@@ -76,6 +77,7 @@ export default function App() {
       <LoginDialog />
       <FocusBar />
       <PushSync />
+      <QuickAddFab />
       <div className="min-h-dvh bg-slate-50 text-slate-900 dark:bg-slate-950 dark:text-slate-100 md:flex">
         {/* Seitenleiste (Desktop) / Leiste unten (Handy) */}
         <nav className="fixed inset-x-0 bottom-0 z-10 border-t border-slate-200 bg-white/90 backdrop-blur dark:border-slate-800 dark:bg-slate-900/90 md:static md:w-56 md:shrink-0 md:border-t-0 md:border-r">
@@ -128,8 +130,10 @@ export default function App() {
           </ul>
         </nav>
 
-        <main className={`mx-auto w-full px-4 ${wide ? 'max-w-7xl' : 'max-w-5xl'} pt-6 pb-24 md:px-8 md:pt-10 md:pb-10`}>
+        <main className={`mx-auto w-full px-4 ${wide ? 'max-w-7xl' : 'max-w-5xl'} pt-6 pb-36 md:px-8 md:pt-10 md:pb-10`}>
           <LegacyImportBanner />
+          {/* key = Seitenwechsel → sanft einblenden */}
+          <div key={pathname.split('/').slice(0, 2).join('/')} className="page-in">
           <Routes>
             <Route path="/" element={<Navigate to="/heute" replace />} />
             <Route path="/heute" element={<Heute />} />
@@ -145,6 +149,7 @@ export default function App() {
             <Route path="/wochenrueckblick" element={<Wochenrueckblick />} />
             <Route path="*" element={<Navigate to="/heute" replace />} />
           </Routes>
+          </div>
         </main>
       </div>
     </>

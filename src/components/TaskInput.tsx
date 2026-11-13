@@ -20,10 +20,14 @@ interface Props {
   space?: Space
   /** Personen, denen man im Bereich zuweisen kann (E-Mails) */
   people?: string[]
+  /** Eingabefeld sofort aktiv (z. B. im Plus-Fenster) */
+  autoFocus?: boolean
+  /** Nach dem Anlegen (z. B. Fenster schließen) */
+  onAdded?: (title: string) => void
 }
 
 /** Schnelleingabe für neue Aufgaben: Titel, Priorität, Datum und Uhrzeit (Beginn – Ende) – optional mit Zuständigkeit. */
-export default function TaskInput({ defaultDueDate, space, people = [] }: Props) {
+export default function TaskInput({ defaultDueDate, space, people = [], autoFocus, onAdded }: Props) {
   const [title, setTitle] = useState('')
   const [priority, setPriority] = useState<Priority>(2)
   const [dueDate, setDueDate] = useState(defaultDueDate ?? '')
@@ -74,6 +78,7 @@ export default function TaskInput({ defaultDueDate, space, people = [] }: Props)
       repeat: finalRepeat,
       ...(space ? { spaceId: space.id, realmId: space.realmId, assignee: finalAssignee || undefined, rotation } : {}),
     })
+    onAdded?.(p ? p.title : title.trim())
   }
 
   return (
@@ -90,6 +95,8 @@ export default function TaskInput({ defaultDueDate, space, people = [] }: Props)
           }}
           placeholder="z. B. „Zahnarzt morgen 15 Uhr“ (Enter)"
           aria-label="Neue Aufgabe"
+          autoFocus={autoFocus}
+          enterKeyHint="done"
           className="min-w-0 flex-1 bg-transparent px-2 py-1.5 outline-none placeholder:text-slate-400"
         />
         <button

@@ -148,3 +148,8 @@ export function touchDragProps(task: Task) {
     style: { WebkitTouchCallout: 'none' as const },
   }
 }
+
+/** Läuft gerade ein Finger-Drag (dann kein Wischen auslösen)? */
+export function isTouchDragging(): boolean {
+  return drag !== null
+}
