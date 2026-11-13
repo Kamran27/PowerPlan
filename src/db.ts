@@ -76,6 +76,25 @@ export interface ShoppingItem {
   createdAt: string
 }
 
+/** Eine Zutat eines Rezepts, z. B. { qty: "500 g", name: "Hackfleisch" } */
+export interface Ingredient {
+  name: string
+  qty?: string
+  category?: string
+}
+
+/** Ein gespeichertes Rezept in einem Bereich – Zutaten mit einem Tipp auf die Einkaufsliste. */
+export interface Recipe {
+  id: string
+  spaceId: string
+  realmId: string
+  title: string
+  /** Für wie viele Personen die Mengen gelten */
+  servings: number
+  ingredients: Ingredient[]
+  createdAt: string
+}
+
 /** Ein Zeitblock im Tagesplan (ab M2). Zeiten als "HH:MM". */
 export interface TimeBlock {
   id: string
@@ -152,6 +171,7 @@ export const db = new Dexie('powerplan-cloud', { addons: [dexieCloud] }) as Dexi
   spaces: EntityTable<Space, 'id'>
   shoppingLists: EntityTable<ShoppingList, 'id'>
   shoppingItems: EntityTable<ShoppingItem, 'id'>
+  recipes: EntityTable<Recipe, 'id'>
 }
 
 // „@id“ = Dexie Cloud vergibt eine weltweit eindeutige Text-ID. Danach: Felder, nach denen gesucht wird.
@@ -174,6 +194,11 @@ db.version(2).stores({
   spaces: '@id',
   shoppingLists: '@id, spaceId',
   shoppingItems: '@id, listId, spaceId',
+})
+
+// Version 3: Rezepte (pro Bereich, geteilt wie die Einkaufslisten)
+db.version(3).stores({
+  recipes: '@id, spaceId',
 })
 
 db.cloud.configure({

@@ -1,6 +1,7 @@
 import { useLiveQuery } from 'dexie-react-hooks'
 import { useEffect, useState, type FormEvent } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
+import RecipesPanel from '../components/RecipesPanel'
 import ShoppingListView from '../components/ShoppingListView'
 import TaskInput from '../components/TaskInput'
 import TaskList from '../components/TaskList'
@@ -151,6 +152,7 @@ export default function Bereich() {
           )}
         </section>
       )}
+      {tab === 'einkauf' && <RecipesPanel space={space} list={activeList} />}
 
       {tab === 'mitglieder' && (
         <section className={card}>

@@ -1,5 +1,8 @@
-import { useState, type FormEvent } from 'react'
+import { useMemo, useState, type FormEvent, type ReactNode } from 'react'
 import type { Space } from '../db'
+import { formatDayShort, todayISO } from '../lib/date'
+import { parseQuickInput } from '../lib/quickparse'
+import { repeatLabel } from '../lib/repeat'
 import { shortName } from '../lib/spaces'
 import { addTask, PRIORITIES, type Priority } from '../lib/tasks'
 import { useMyEmail } from '../lib/useMe'
@@ -28,28 +31,41 @@ export default function TaskInput({ defaultDueDate, space, people = [] }: Props)
   const [end, setEnd] = useState('')
   const [assignee, setAssignee] = useState('')
   const [repeat, setRepeat] = useState<Repeat | ''>('')
+  /** „Nicht erkennen“ gedrückt: Text bleibt wörtlich so, wie getippt */
+  const [literal, setLiteral] = useState(false)
   const me = useMyEmail()
 
-  const timeError = timeRangeError(start, end)
+  // Schnelleingabe in normaler Sprache: „Zahnarzt morgen 15 Uhr“ → Datum + Zeit erkannt
+  const parsed = useMemo(
+    () => parseQuickInput(title, todayISO(), space ? { people, me } : {}),
+    [title, space, people, me],
+  )
+  const useParsed = parsed.found && !literal
+
+  const timeError = useParsed && parsed.start ? undefined : timeRangeError(start, end)
   const canSubmit = !!title.trim() && !timeError
 
   async function submit(e: FormEvent) {
     e.preventDefault()
     if (!canSubmit) return
+    // Erkanntes hat Vorrang vor den Feldern darunter
+    const p = useParsed ? parsed : undefined
+    const finalAssignee = p?.assignee !== undefined ? p.assignee : assignee
     // Sofort leeren, damit schnelles Weitertippen nicht verloren geht.
     // Die Uhrzeit gilt nur für diese eine Aufgabe; Priorität und Datum bleiben für die nächste stehen.
     setTitle('')
     setStart('')
     setEnd('')
     setRepeat('')
+    setLiteral(false)
     await addTask({
-      title,
-      priority,
-      dueDate,
-      start,
-      end,
-      repeat: repeat || undefined,
-      ...(space ? { spaceId: space.id, realmId: space.realmId, assignee: assignee || undefined } : {}),
+      title: p ? p.title : title,
+      priority: p?.priority ?? priority,
+      dueDate: p?.dueDate ?? dueDate,
+      start: p?.start ?? start,
+      end: p?.start ? p.end : end,
+      repeat: p?.repeat ?? (repeat || undefined),
+      ...(space ? { spaceId: space.id, realmId: space.realmId, assignee: finalAssignee || undefined } : {}),
     })
   }
 
@@ -61,8 +77,11 @@ export default function TaskInput({ defaultDueDate, space, people = [] }: Props)
       <div className="flex gap-2">
         <input
           value={title}
-          onChange={(e) => setTitle(e.target.value)}
-          placeholder="Neue Aufgabe … (Enter zum Speichern)"
+          onChange={(e) => {
+            setTitle(e.target.value)
+            if (!e.target.value) setLiteral(false)
+          }}
+          placeholder="z. B. „Zahnarzt morgen 15 Uhr“ (Enter)"
           aria-label="Neue Aufgabe"
           className="min-w-0 flex-1 bg-transparent px-2 py-1.5 outline-none placeholder:text-slate-400"
         />
@@ -74,6 +93,34 @@ export default function TaskInput({ defaultDueDate, space, people = [] }: Props)
           Hinzufügen
         </button>
       </div>
+      {/* Vorschau: was aus dem Text erkannt wurde */}
+      {parsed.found && (
+        <div className="mt-1.5 flex flex-wrap items-center gap-1.5 px-2 text-xs" aria-live="polite">
+          {literal ? (
+            <>
+              <span className="text-slate-500 dark:text-slate-400">Text wird wörtlich übernommen.</span>
+              <button type="button" onClick={() => setLiteral(false)} className="text-indigo-600 hover:underline dark:text-indigo-400">
+                Doch erkennen
+              </button>
+            </>
+          ) : (
+            <>
+              <span className="text-slate-500 dark:text-slate-400">Erkannt:</span>
+              <span className="font-medium">„{parsed.title}“</span>
+              {parsed.dueDate && <Chip>📅 {formatDayShort(parsed.dueDate)}</Chip>}
+              {parsed.start && <Chip>🕒 {parsed.start}{parsed.end ? `–${parsed.end}` : ''} Uhr</Chip>}
+              {parsed.repeat && <Chip>🔁 {repeatLabel(parsed.repeat)}</Chip>}
+              {parsed.priority && <Chip>❗ {PRIORITIES.find((p) => p.value === parsed.priority)!.label}</Chip>}
+              {parsed.assignee !== undefined && (
+                <Chip>{parsed.assignee ? `👤 ${parsed.assignee === me ? 'Ich' : shortName(parsed.assignee)}` : '👥 Für alle'}</Chip>
+              )}
+              <button type="button" onClick={() => setLiteral(true)} className="text-slate-500 hover:underline dark:text-slate-400">
+                Nicht erkennen
+              </button>
+            </>
+          )}
+        </div>
+      )}
       <div className="mt-2 flex flex-wrap items-center gap-2 border-t border-slate-100 px-1 pt-2 dark:border-slate-800">
         <select
           value={priority}
@@ -139,5 +186,13 @@ export default function TaskInput({ defaultDueDate, space, people = [] }: Props)
         </div>
       )}
     </form>
+  )
+}
+
+function Chip({ children }: { children: ReactNode }) {
+  return (
+    <span className="rounded-full bg-indigo-50 px-2 py-0.5 text-indigo-700 ring-1 ring-indigo-200 dark:bg-indigo-500/15 dark:text-indigo-300 dark:ring-indigo-500/30">
+      {children}
+    </span>
   )
 }
