@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { CalendarCheck, CalendarDays, ChartColumn, Ellipsis, ListChecks, Repeat, Search, Settings, Sun, Target, Users } from 'lucide-react'
 import { NavLink, Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-dom'
 import Heute from './pages/Heute'
@@ -19,6 +19,9 @@ import FocusBar from './components/FocusBar'
 import PushSync from './components/PushSync'
 import QuickAddFab from './components/QuickAddFab'
 import KudosNotifier from './components/KudosNotifier'
+import CatWalker from './components/CatWalker'
+import { SleepingCat } from './components/Cats'
+import { triggerCatParade } from './lib/celebrate'
 import CloudStatus from './components/CloudStatus'
 import LegacyImportBanner from './components/LegacyImportBanner'
 
@@ -52,6 +55,7 @@ function navClass({ isActive }: { isActive: boolean }) {
 export default function App() {
   const { pathname } = useLocation()
   const [moreOpen, setMoreOpen] = useState(false)
+  const logoTaps = useRef<number[]>([])
   // Der Wochenkalender bekommt mehr Breite als die übrigen Seiten
   const wide = pathname.startsWith('/woche')
   const moreActive = navItems.some((i) => i.more && pathname.startsWith(i.to))
@@ -80,11 +84,26 @@ export default function App() {
       <PushSync />
       <QuickAddFab />
       <KudosNotifier />
+      <CatWalker />
       <div className="min-h-dvh bg-slate-50 text-slate-900 dark:bg-slate-950 dark:text-slate-100 md:flex">
         {/* Seitenleiste (Desktop) / Leiste unten (Handy) */}
         <nav className="fixed inset-x-0 bottom-0 z-10 border-t border-slate-200 bg-white/90 backdrop-blur dark:border-slate-800 dark:bg-slate-900/90 md:static md:w-56 md:shrink-0 md:border-t-0 md:border-r">
           <div className="hidden px-5 py-6 md:block">
-            <span className="text-lg font-bold tracking-tight">⚡ PowerPlan</span>
+            {/* Geheimtipp: 5× schnell aufs Logo tippen → Katzenparade */}
+            <button
+              type="button"
+              onClick={() => {
+                const now = Date.now()
+                logoTaps.current = [...logoTaps.current.filter((t) => now - t < 2000), now]
+                if (logoTaps.current.length >= 5) {
+                  logoTaps.current = []
+                  triggerCatParade()
+                }
+              }}
+              className="text-lg font-bold tracking-tight"
+            >
+              ⚡ PowerPlan
+            </button>
             <LevelBadge className="-mx-3 mt-3" />
             <CloudStatus />
           </div>
@@ -130,6 +149,8 @@ export default function App() {
               )}
             </li>
           </ul>
+          {/* Versteckt: unten in der Seitenleiste schläft eine Katze (nur am Computer) */}
+          <SleepingCat className="mx-auto mt-10 hidden w-20 text-slate-300 md:block dark:text-slate-700" />
         </nav>
 
         <main className={`mx-auto w-full px-4 ${wide ? 'max-w-7xl' : 'max-w-5xl'} pt-6 pb-36 md:px-8 md:pt-10 md:pb-10`}>

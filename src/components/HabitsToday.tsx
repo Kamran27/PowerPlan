@@ -43,7 +43,7 @@ export default function HabitsToday({ habits, doneByHabit, today }: Props) {
           {doneCount} von {dueToday.length}
         </span>
       </div>
-      <ul className="flex flex-wrap gap-2">
+      <ul className="flex flex-wrap gap-1.5">
         {dueToday.map((h) => {
           const done = doneByHabit.get(h.id) ?? new Set<string>()
           const isDone = done.has(today)
@@ -53,7 +53,7 @@ export default function HabitsToday({ habits, doneByHabit, today }: Props) {
               <button
                 onClick={() => toggle(h.id, today)}
                 aria-pressed={isDone}
-                className={`flex items-center gap-2 rounded-full py-1.5 pr-3 pl-2 text-sm transition ${
+                className={`flex items-center gap-1.5 rounded-full py-1 pr-2.5 pl-2 text-xs transition ${
                   isDone
                     ? 'bg-indigo-600 text-white hover:bg-indigo-500'
                     : 'bg-white ring-1 ring-slate-200 hover:ring-indigo-400 dark:bg-slate-900 dark:ring-slate-700'

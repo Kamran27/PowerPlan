@@ -2,6 +2,7 @@ import { useState } from 'react'
 import type { Habit } from '../db'
 import { deleteHabit, describeDays, habitStreaks, isDueOn, WEEKDAY_SHORT } from '../lib/habits'
 import HabitForm from './HabitForm'
+import { SittingCat } from './Cats'
 import { useToast } from './Toast'
 import { useToggleHabit } from './useToggleHabit'
 
@@ -28,23 +29,25 @@ export default function HabitCard({ habit, done, week, today }: Props) {
   if (editing) return <HabitForm habit={habit} onDone={() => setEditing(false)} />
 
   return (
-    <li className="group rounded-2xl bg-white p-4 shadow-sm ring-1 ring-slate-200 dark:bg-slate-900 dark:ring-slate-800">
-      <div className="flex items-start gap-3">
-        <span className="text-2xl leading-none" aria-hidden>
+    <li className="group relative rounded-xl bg-white p-3 shadow-sm ring-1 ring-slate-200 dark:bg-slate-900 dark:ring-slate-800">
+      {/* Versteckt: Bei Katzen-Routinen sitzt eine kleine Katze in der Ecke */}
+      {/katz|cat|miez/i.test(habit.name) && <SittingCat className="absolute bottom-2 left-3 w-6 text-slate-300 dark:text-slate-600" />}
+      <div className="flex items-center gap-2.5">
+        <span className="text-xl leading-none" aria-hidden>
           {habit.emoji || '✨'}
         </span>
         <div className="min-w-0 flex-1">
-          <div className="font-medium">{habit.name}</div>
+          <div className="truncate text-sm font-medium">{habit.name}</div>
           <div className="text-xs text-slate-500 dark:text-slate-400">{describeDays(habit.days)}</div>
         </div>
-        <div className="text-right text-sm" title={`Bester Streak: ${streak.best}`}>
+        <div className="text-right text-xs" title={`Bester Streak: ${streak.best}`}>
           <span aria-hidden>🔥</span> <strong className="tabular-nums">{streak.current}</strong>
-          <div className="text-xs text-slate-500 dark:text-slate-400">Best: {streak.best}</div>
+          <span className="ml-1 text-slate-500 dark:text-slate-400">· Best {streak.best}</span>
         </div>
       </div>
 
       {/* Wochenraster */}
-      <div className="mt-3 grid grid-cols-7 gap-1">
+      <div className="mt-2 grid grid-cols-7 gap-0.5">
         {week.map((date, i) => {
           const due = isDueOn(habit, date)
           const isDone = done.has(date)
@@ -52,7 +55,7 @@ export default function HabitCard({ habit, done, week, today }: Props) {
           const missed = due && !isDone && date < today
           const label = `${WEEKDAY_SHORT[i]}: ${!due ? 'nicht fällig' : isDone ? 'erledigt' : future ? 'kommt noch' : missed ? 'verpasst' : 'offen'}`
           return (
-            <div key={date} className="flex flex-col items-center gap-1">
+            <div key={date} className="flex flex-col items-center gap-0.5">
               <span className={`text-[10px] ${date === today ? 'font-bold text-slate-900 dark:text-slate-100' : 'text-slate-400'}`}>
                 {WEEKDAY_SHORT[i]}
               </span>
@@ -63,7 +66,7 @@ export default function HabitCard({ habit, done, week, today }: Props) {
                 aria-label={label}
                 aria-pressed={isDone}
                 title={label}
-                className={`flex size-8 items-center justify-center rounded-full text-sm transition ${
+                className={`flex size-7 items-center justify-center rounded-full text-xs transition ${
                   isDone
                     ? 'bg-indigo-600 text-white hover:bg-indigo-500'
                     : !due
@@ -82,7 +85,7 @@ export default function HabitCard({ habit, done, week, today }: Props) {
         })}
       </div>
 
-      <div className="mt-3 flex justify-end gap-3 text-xs opacity-0 transition group-hover:opacity-100 focus-within:opacity-100 max-md:opacity-100">
+      <div className="mt-1.5 flex justify-end gap-3 text-xs opacity-0 transition group-hover:opacity-100 focus-within:opacity-100 max-md:opacity-100">
         <button onClick={() => setEditing(true)} className="text-slate-500 hover:underline">
           Bearbeiten
         </button>

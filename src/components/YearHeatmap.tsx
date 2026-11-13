@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { addDays, formatDayShort } from '../lib/date'
 import { weekStart } from '../lib/points'
+import { SittingCat } from './Cats'
 
 /*
  * Jahres-Heatmap: jedes Kästchen ein Tag, je dunkler, desto mehr Punkte.
@@ -47,7 +48,9 @@ export default function YearHeatmap({ byDay, today, protectedDays = [] }: { byDa
   const hoverPts = hover ? (byDay.get(hover) ?? 0) : 0
 
   return (
-    <section className="mb-6 rounded-2xl bg-white p-5 shadow-sm ring-1 ring-slate-200 dark:bg-slate-900 dark:ring-slate-800">
+    <section className="relative mt-10 mb-6 rounded-2xl bg-white p-5 shadow-sm ring-1 ring-slate-200 dark:bg-slate-900 dark:ring-slate-800">
+      {/* Katze sitzt oben auf der Karte und wedelt */}
+      <SittingCat className="absolute -top-[46px] right-6 w-10 text-slate-400 dark:text-slate-500" />
       <div className="flex flex-wrap items-baseline justify-between gap-2">
         <h2 className="font-semibold">Dein Jahr</h2>
         <span className="text-xs text-slate-500 dark:text-slate-400">{activeDays} aktive Tage in den letzten 12 Monaten</span>

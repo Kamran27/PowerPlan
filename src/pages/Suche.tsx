@@ -6,6 +6,7 @@ import TaskList from '../components/TaskList'
 import { db } from '../db'
 import { compareTasks } from '../lib/tasks'
 import { formatDayShort } from '../lib/date'
+import { SittingCat } from '../components/Cats'
 
 const card = 'rounded-2xl bg-white p-4 shadow-sm ring-1 ring-slate-200 dark:bg-slate-900 dark:ring-slate-800'
 
@@ -62,7 +63,12 @@ export default function Suche() {
         className="w-full rounded-2xl bg-white px-4 py-3 text-lg shadow-sm ring-1 ring-slate-200 outline-none focus:ring-2 focus:ring-indigo-500 dark:bg-slate-900 dark:ring-slate-800"
       />
 
-      {loaded && q.trim() && total === 0 && <p className="mt-6 text-center text-sm text-slate-500 dark:text-slate-400">Nichts gefunden für „{q}“.</p>}
+      {loaded && q.trim() && total === 0 && (
+        <div className="mt-8 text-center text-sm text-slate-500 dark:text-slate-400">
+          <SittingCat className="mx-auto mb-2 w-14 text-slate-300 dark:text-slate-600" />
+          Nichts gefunden für „{q}“ – nur ich sitze hier.
+        </div>
+      )}
 
       {r.tasks.length > 0 && (
         <section className="mt-6">

@@ -1,6 +1,6 @@
 import { useLiveQuery } from 'dexie-react-hooks'
 import { useEffect, useMemo } from 'react'
-import { PeekingCat } from '../components/Cats'
+import TapCat from '../components/TapCat'
 import { celebrateOnce, pawConfetti } from '../lib/celebrate'
 import { Flame, Shield, ShieldCheck, Star, Trophy, UtensilsCrossed } from 'lucide-react'
 import { Link } from 'react-router-dom'
@@ -111,7 +111,7 @@ export default function Heute() {
 
       <section className="relative mt-8 mb-6 rounded-3xl bg-white p-5 shadow-sm ring-1 ring-slate-200 md:p-6 dark:bg-slate-900 dark:ring-slate-800">
         {/* Katze schaut über den Rand */}
-        <PeekingCat className="absolute -top-[25px] right-8 w-12 text-slate-400 dark:text-slate-500" />
+        <TapCat className="absolute -top-[25px] right-8 text-slate-400 dark:text-slate-500" />
         <div className="flex flex-wrap items-center justify-between gap-4">
           <DayRings rings={rings} />
           {allRingsClosed && (
@@ -187,7 +187,7 @@ export default function Heute() {
               <Skeleton rows={4} />
             )}
           </div>
-          <div className="mt-6">
+          <div className="mt-6 mb-10">
             {allTasks && <DayReview date={today} points={pointsToday} doneTasks={doneTasks} openTasks={openTasks} />}
           </div>
         </section>

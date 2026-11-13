@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { completeFocus, FOCUS_MAX, FOCUS_PRESETS, formatClock, remainingMs, setDefaultMinutes, setFocusMinutes, stopFocus, useFocus } from '../lib/focus'
 import { sessionPoints } from '../lib/points'
 import { useToast } from './Toast'
+import { PeekingCat } from './Cats'
 
 const btn = 'rounded-md px-2 py-1 text-sm font-semibold hover:bg-amber-600 disabled:opacity-40'
 
@@ -57,11 +58,10 @@ export default function FocusBar() {
   }
 
   return (
-    <div
-      role="status"
-      aria-label="Fokus-Timer"
-      className="fixed inset-x-2 bottom-20 z-20 mx-auto max-w-md overflow-hidden rounded-2xl bg-amber-500 text-white shadow-xl md:right-6 md:bottom-6 md:left-auto md:w-[26rem]"
-    >
+    <div className="fixed inset-x-2 bottom-20 z-20 mx-auto max-w-md md:right-6 md:bottom-6 md:left-auto md:w-[26rem]">
+    {/* Eine Katze schaut dir beim Konzentrieren zu */}
+    <PeekingCat className="absolute -top-[19px] left-5 w-9 text-amber-500 dark:text-amber-400" />
+    <div role="status" aria-label="Fokus-Timer" className="overflow-hidden rounded-2xl bg-amber-500 text-white shadow-xl">
       <div className="flex items-center gap-2 px-4 py-2.5">
         <span className="text-2xl font-bold tabular-nums">{formatClock(left)}</span>
         <span className="min-w-0 flex-1 truncate text-sm">
@@ -135,6 +135,7 @@ export default function FocusBar() {
       <div className="h-1 bg-amber-600">
         <div className="h-full bg-white/80 transition-all duration-1000" style={{ width: `${pct}%` }} />
       </div>
+    </div>
     </div>
   )
 }

@@ -4,6 +4,7 @@ import PageHeader from '../components/PageHeader'
 import ReminderSettingsCard from '../components/ReminderSettingsCard'
 import AccountCard from '../components/AccountCard'
 import ThemeCard from '../components/ThemeCard'
+import { SleepingCat } from '../components/Cats'
 import FocusSettingsCard from '../components/FocusSettingsCard'
 import { useToast } from '../components/Toast'
 import { exportBackup, readBackup, restoreBackup } from '../lib/backup'
@@ -130,6 +131,11 @@ export default function Einstellungen() {
       </section>
       <ReminderSettingsCard />
       <InstallAppCard />
+      {/* Ganz unten versteckt */}
+      <div className="mt-12 mb-4 text-center text-xs text-slate-400 dark:text-slate-500">
+        <SleepingCat className="mx-auto mb-1 w-20 text-slate-300 dark:text-slate-600" />
+        Psst … hier unten schläft jemand.
+      </div>
     </div>
   )
 }

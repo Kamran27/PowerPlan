@@ -72,7 +72,7 @@ export default function Gewohnheiten() {
         </p>
       )}
 
-      <ul className="grid gap-3">
+      <ul className="grid gap-2.5 sm:grid-cols-2">
         {(habits ?? []).map((h) => (
           <HabitCard key={h.id} habit={h} done={doneByHabit.get(h.id) ?? new Set()} week={week} today={today} />
         ))}

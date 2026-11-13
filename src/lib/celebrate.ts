@@ -57,3 +57,8 @@ export function celebrateOnce(key: string, today: string, fn: () => void) {
   }
   fn()
 }
+
+/** Katzenparade: lässt sofort `count` Katzen über den Bildschirm laufen (siehe CatWalker). */
+export function triggerCatParade(count = 3) {
+  window.dispatchEvent(new CustomEvent('powerplan-cats', { detail: count }))
+}
