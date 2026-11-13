@@ -34,8 +34,8 @@ export function pointsForMe(t: Task, me?: string): boolean {
 
 /* ---------- Bereiche ---------- */
 
-/** Legt einen Bereich samt eigenem Realm und einer ersten Einkaufsliste an. */
-export async function createSpace(title: string, emoji?: string): Promise<string> {
+/** Legt einen Bereich samt eigenem Realm und (ohne `withList: false`) einer ersten Einkaufsliste an. */
+export async function createSpace(title: string, emoji?: string, opts: { withList?: boolean } = {}): Promise<string> {
   return db.transaction('rw', [db.spaces, db.realms, db.shoppingLists], async () => {
     const id = await db.spaces.add({
       title: title.trim(),
@@ -46,7 +46,9 @@ export async function createSpace(title: string, emoji?: string): Promise<string
     const realmId = getTiedRealmId(id)
     await db.realms.put({ realmId, name: title.trim(), represents: 'ein gemeinsamer Bereich in PowerPlan' })
     await db.spaces.update(id, { realmId }) // ab jetzt gehört der Bereich in seinen Realm
-    await db.shoppingLists.add({ spaceId: id, realmId, title: 'Einkauf', createdAt: new Date().toISOString() } as ShoppingList)
+    if (opts.withList !== false) {
+      await db.shoppingLists.add({ spaceId: id, realmId, title: 'Einkauf', createdAt: new Date().toISOString() } as ShoppingList)
+    }
     return id
   })
 }
@@ -67,7 +69,8 @@ export async function renameSpace(space: Space, title: string, emoji?: string) {
  * sie verschwinden mit dem Realm. Offline bleibt der (dann leere) Realm einfach bestehen – das stört nicht.
  */
 export async function deleteSpace(space: Space) {
-  await db.transaction('rw', [db.spaces, db.tasks, db.shoppingLists, db.shoppingItems], async () => {
+  await db.transaction('rw', [db.spaces, db.tasks, db.shoppingLists, db.shoppingItems, db.recipes], async () => {
+    await db.recipes.where('spaceId').equals(space.id).delete()
     await db.shoppingItems.where('spaceId').equals(space.id).delete()
     await db.shoppingLists.where('spaceId').equals(space.id).delete()
     await db.tasks.where('spaceId').equals(space.id).delete()

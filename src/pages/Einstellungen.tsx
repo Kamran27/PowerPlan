@@ -12,10 +12,12 @@ export default function Einstellungen() {
   const fileRef = useRef<HTMLInputElement>(null)
   const [pending, setPending] = useState<Pending | null>(null)
   const [error, setError] = useState('')
+  const [info, setInfo] = useState('')
   const toast = useToast()
 
   async function onFile(file: File | undefined) {
     setError('')
+    setInfo('')
     setPending(null)
     if (!file) return
     try {
@@ -30,12 +32,36 @@ export default function Einstellungen() {
   async function confirmImport() {
     if (!pending) return
     try {
-      await restoreBackup(pending)
-      toast(`Sicherung wiederhergestellt (${pending.tasks.length} Aufgaben, ${pending.habits.length} Gewohnheiten)`)
-    } catch {
+      const r = await restoreBackup(pending)
+      toast(`Sicherung wiederhergestellt (${pending.tasks.length} Aufgaben, ${pending.habits.length} Gewohnheiten, ${pending.spaces.length} Bereiche)`)
+      const notes: string[] = []
+      if (r.recreatedSpaces.length)
+        notes.push(
+          `Neu angelegt, weil gelöscht: ${r.recreatedSpaces.map((t) => `„${t}“`).join(', ')}. Mitglieder bitte unter Gemeinsam → Mitglieder neu einladen.`,
+        )
+      if (r.madePrivate) notes.push(`${r.madePrivate} gemeinsame Aufgaben ohne ihren Bereich wurden als private Aufgaben übernommen.`)
+      setInfo(notes.join(' '))
+    } catch (e) {
+      console.error(e)
       setError('Wiederherstellen fehlgeschlagen. Deine bisherigen Daten sind unverändert.')
     }
     setPending(null)
+  }
+
+  // Kurze Übersicht der Sicherung: „12 Aufgaben, 3 Gewohnheiten, 2 Bereiche, 40 Artikel, 5 Rezepte“
+  function summary(p: Pending) {
+    const parts: [number, string, string][] = [
+      [p.tasks.length, 'Aufgabe', 'Aufgaben'],
+      [p.habits.length, 'Gewohnheit', 'Gewohnheiten'],
+      [p.goals.length, 'Ziel', 'Ziele'],
+      [p.spaces.length, 'gemeinsamer Bereich', 'gemeinsame Bereiche'],
+      [p.shoppingItems.filter((i) => !i.cleared).length, 'Einkaufsartikel', 'Einkaufsartikel'],
+      [p.recipes.length, 'Rezept', 'Rezepte'],
+    ]
+    return parts
+      .filter(([n], i) => n > 0 || i < 2)
+      .map(([n, one, many]) => `${n} ${n === 1 ? one : many}`)
+      .join(', ')
   }
 
   return (
@@ -46,6 +72,7 @@ export default function Einstellungen() {
         <h2 className="font-semibold">Datensicherung</h2>
         <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
           Deine Daten werden automatisch mit der Cloud abgeglichen. Eine Sicherungsdatei ist trotzdem ein gutes Extra-Backup, z. B. in deinem iCloud Drive.
+          Sie enthält alles: deine privaten Daten und die gemeinsamen Bereiche mit Aufgaben, Einkaufslisten und Rezepten.
         </p>
         <div className="mt-4 flex flex-wrap gap-2">
           <button
@@ -70,15 +97,21 @@ export default function Einstellungen() {
         </div>
 
         {error && <p className="mt-3 text-sm text-rose-600 dark:text-rose-400">{error}</p>}
+        {info && <p className="mt-3 rounded-lg bg-sky-50 p-3 text-sm text-sky-800 ring-1 ring-sky-200 dark:bg-sky-500/10 dark:text-sky-200 dark:ring-sky-500/30">ℹ️ {info}</p>}
 
         {pending && (
           <div className="mt-4 rounded-xl bg-amber-50 p-4 text-sm ring-1 ring-amber-200 dark:bg-amber-500/10 dark:ring-amber-500/30">
             <p>
               Sicherung vom{' '}
               <strong>{pending.exportedAt ? new Date(pending.exportedAt).toLocaleString('de-DE') : 'unbekannten Datum'}</strong>{' '}
-              mit <strong>{pending.tasks.length} Aufgaben</strong> und <strong>{pending.habits.length} Gewohnheiten</strong>.
+              mit <strong>{summary(pending)}</strong>.
             </p>
             <p className="mt-1">Die Einträge werden <strong>hinzugefügt</strong> (bzw. gleiche Einträge aktualisiert) – es wird nichts gelöscht. Sie erscheinen danach auf allen deinen Geräten.</p>
+            {pending.spaces.length > 0 && (
+              <p className="mt-1">
+                Gemeinsame Bereiche, die es noch gibt, werden ergänzt – für alle Mitglieder. Gelöschte Bereiche werden neu angelegt; die Mitglieder lädst du dann neu ein.
+              </p>
+            )}
             <div className="mt-3 flex gap-2">
               <button onClick={confirmImport} className="rounded-lg bg-amber-600 px-3 py-1.5 font-semibold text-white hover:bg-amber-500">
                 Ja, übernehmen
