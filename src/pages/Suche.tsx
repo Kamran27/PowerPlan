@@ -52,7 +52,7 @@ export default function Suche() {
 
   return (
     <div className="max-w-3xl">
-      <PageHeader title="Suche" subtitle="Aufgaben, Notizen, Checklisten, Einkauf, Rezepte, Essensplan, Gewohnheiten und Ziele" />
+      <PageHeader title="Suche" subtitle="Aufgaben, Notizen, Checklisten, Einkauf, Rezepte, Essensplan, Gewohnheiten und Ziele" cat="peeking" />
       <input
         autoFocus
         type="search"

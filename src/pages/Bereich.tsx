@@ -3,6 +3,7 @@ import { useEffect, useState, type FormEvent } from 'react'
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import MealPlanView from '../components/MealPlanView'
 import Avatar from '../components/Avatar'
+import { Cat } from '../components/Cats'
 import RecipesPanel from '../components/RecipesPanel'
 import ShoppingListView from '../components/ShoppingListView'
 import TaskInput from '../components/TaskInput'
@@ -237,7 +238,9 @@ function SpaceHeader({ space, people, me }: { space: Space; people: string[]; me
   }
 
   return (
-    <header className="mt-2">
+    <header className="relative mt-2">
+      {/* Zwei Katzen – wie ihr zwei */}
+      <Cat pose="pair" className="absolute right-0 bottom-0 text-slate-400 dark:text-slate-500" />
       <h1 className="flex items-center gap-2 text-2xl font-bold tracking-tight">
         <span aria-hidden>{space.emoji || '👥'}</span> {space.title}
         <button onClick={() => setEditing(true)} className="ml-1 text-sm font-normal text-slate-400 hover:text-slate-600" aria-label="Umbenennen">

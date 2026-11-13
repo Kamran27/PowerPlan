@@ -8,9 +8,11 @@ interface Props {
   empty: string
   /** Aufgaben-ID → geplante Zeitspanne im Tagesplan. */
   scheduled?: Map<string, string>
+  /** Schmale Spalte: Knöpfe nur beim Darüberfahren */
+  compact?: boolean
 }
 
-export default function TaskList({ tasks, empty, scheduled }: Props) {
+export default function TaskList({ tasks, empty, scheduled, compact }: Props) {
   // Ziele einmal pro Liste laden (für 🎯-Hinweis und Auswahl im Bearbeiten-Dialog).
   const goals = useLiveQuery(() => db.goals.toArray(), []) ?? []
   // Gemeinsame Bereiche (für 👥-Hinweis und Zuweisung)
@@ -27,7 +29,7 @@ export default function TaskList({ tasks, empty, scheduled }: Props) {
   return (
     <ul className="grid gap-0.5">
       {tasks.map((t) => (
-        <TaskItem key={t.id} task={t} scheduledAt={scheduled?.get(t.id)} goals={goals} spaces={spaces} />
+        <TaskItem key={t.id} task={t} scheduledAt={scheduled?.get(t.id)} goals={goals} spaces={spaces} compact={compact} />
       ))}
     </ul>
   )

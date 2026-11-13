@@ -34,7 +34,7 @@ export default function Aufgaben() {
 
   return (
     <div className="max-w-3xl">
-      <PageHeader title="Aufgaben" subtitle={tasks ? `${openCount} offen` : ' '} />
+      <PageHeader title="Aufgaben" subtitle={tasks ? `${openCount} offen` : ' '} cat="sleeping" />
       <TaskInput />
       <div role="tablist" className="mt-6 mb-2 flex gap-1 overflow-x-auto">
         {FILTERS.map((f) => (

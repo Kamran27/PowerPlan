@@ -34,7 +34,7 @@ export default function Gewohnheiten() {
 
   return (
     <div className="max-w-3xl">
-      <PageHeader title="Gewohnheiten" subtitle="Kleine Routinen, jeden Tag ein Haken." />
+      <PageHeader title="Gewohnheiten" subtitle="Kleine Routinen, jeden Tag ein Haken." cat="sitting" />
       <HabitForm />
 
       {/* Wochen-Navigation + Wochenbilanz */}

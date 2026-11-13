@@ -111,3 +111,46 @@ export function WalkingCat({ className = '' }: { className?: string }) {
     </svg>
   )
 }
+
+/** „Brot-Katze“: liegt gemütlich mit eingezogenen Pfoten, Schwanzspitze zuckt. */
+export function LoafCat({ className = '' }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 46 32" aria-hidden className={className}>
+      {/* Körper */}
+      <path {...line} d="M7 30.5 C4.8 23 8.5 16.5 15 15.2 M29.5 15.2 C36.5 16.5 40.6 23 38.6 30.5 L7 30.5" />
+      {/* Kopf mit Ohren */}
+      <path {...line} d="M14.2 18.6 L13.6 8.4 L18.6 12.4 Q22.3 11.4 26 12.4 L31 8.4 L30.4 18.6 Q31.4 25.6 22.3 26 Q13.2 25.6 14.2 18.6 Z" />
+      <g className="cat-blink">
+        <path {...line} strokeWidth={1.3} d="M17.6 18.4 q1.4 -1.5 2.8 0 M24.2 18.4 q1.4 -1.5 2.8 0" />
+      </g>
+      <path {...line} strokeWidth={1.2} d="M21.3 21.2 l1 0.8 l1 -0.8" />
+      {/* eingezogene Pfoten, Schwanzspitze */}
+      <path {...line} d="M16.6 30.5 q2.2 -2.4 4.4 0 M23.8 30.5 q2.2 -2.4 4.4 0" />
+      <path {...line} className="cat-tail" d="M38.6 30.5 C42.6 30.5 44 27.6 42 25.4" />
+    </svg>
+  )
+}
+
+export type CatPose = 'sitting' | 'sleeping' | 'loaf' | 'pair' | 'peeking'
+
+/** Eine Katze in der gewünschten Pose – für die Seitenköpfe. */
+export function Cat({ pose, className = '' }: { pose: CatPose; className?: string }) {
+  switch (pose) {
+    case 'sitting':
+      return <SittingCat className={`w-9 ${className}`} />
+    case 'sleeping':
+      return <SleepingCat className={`w-20 ${className}`} />
+    case 'loaf':
+      return <LoafCat className={`w-12 ${className}`} />
+    case 'peeking':
+      return <PeekingCat className={`w-12 ${className}`} />
+    case 'pair':
+      // Zwei Katzen nebeneinander – wie ihr zwei
+      return (
+        <span className={`flex items-end gap-0.5 ${className}`}>
+          <SittingCat className="w-9" />
+          <SittingCat className="w-7 -scale-x-100" />
+        </span>
+      )
+  }
+}

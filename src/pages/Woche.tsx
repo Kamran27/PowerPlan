@@ -85,7 +85,7 @@ export default function Woche() {
 
   return (
     <>
-      <PageHeader title="Woche" subtitle="Alle Termine und Aufgaben der Woche auf einen Blick." />
+      <PageHeader title="Woche" subtitle="Alle Termine und Aufgaben der Woche auf einen Blick." cat="sitting" />
 
       {/* Wochen-Navigation */}
       <div className="mb-3 flex flex-wrap items-center gap-2">
@@ -109,7 +109,7 @@ export default function Woche() {
         </span>
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-[16rem_minmax(0,1fr)] lg:items-start">
+      <div className="grid gap-6 lg:grid-cols-[19rem_minmax(0,1fr)] lg:items-start">
         {/* Noch nicht eingeplante Aufgaben (zum Hineinziehen) */}
         <section className="lg:sticky lg:top-6">
           <h2 className="mb-1 font-semibold">
@@ -118,7 +118,7 @@ export default function Woche() {
           </h2>
           <p className="mb-2 text-xs text-slate-500 dark:text-slate-400">In einen Tag ziehen, um einen Zeitblock anzulegen.</p>
           <div className="max-h-[30vh] overflow-y-auto lg:max-h-[70vh]">
-            {loaded && <TaskList tasks={unplanned} empty="Alles für diese Woche ist eingeplant. 🎉" />}
+            {loaded && <TaskList tasks={unplanned} compact empty="Alles für diese Woche ist eingeplant. 🎉" />}
           </div>
         </section>
 

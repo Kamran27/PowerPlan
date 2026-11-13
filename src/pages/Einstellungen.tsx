@@ -70,7 +70,7 @@ export default function Einstellungen() {
 
   return (
     <div className="max-w-3xl">
-      <PageHeader title="Einstellungen" />
+      <PageHeader title="Einstellungen" cat="sitting" />
       <AccountCard />
       <ThemeCard />
       <FocusSettingsCard />

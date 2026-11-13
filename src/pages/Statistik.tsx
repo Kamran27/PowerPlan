@@ -59,7 +59,7 @@ export default function Statistik() {
 
   return (
     <div className="max-w-3xl">
-      <PageHeader title="Statistik" subtitle="Dein Fortschritt über die Zeit." />
+      <PageHeader title="Statistik" subtitle="Dein Fortschritt über die Zeit." cat="loaf" />
 
       <LevelCard />
 

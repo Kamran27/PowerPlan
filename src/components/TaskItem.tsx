@@ -52,9 +52,11 @@ interface Props {
   goals?: Goal[]
   /** Gemeinsame Bereiche (für 👥-Hinweis und Zuweisung) */
   spaces?: Space[]
+  /** Schmale Liste (z. B. Wochenansicht): Knöpfe nur beim Darüberfahren, damit der Name Platz hat */
+  compact?: boolean
 }
 
-export default function TaskItem({ task, scheduledAt, goals = [], spaces = [] }: Props) {
+export default function TaskItem({ task, scheduledAt, goals = [], spaces = [], compact = false }: Props) {
   const [editing, setEditing] = useState(false)
   const [editBlock, setEditBlock] = useState<TimeBlock | undefined>()
   const [checklistOpen, setChecklistOpen] = useState(false)
@@ -210,6 +212,14 @@ export default function TaskItem({ task, scheduledAt, goals = [], spaces = [] }:
           </span>
         )}
       </button>
+      {/* Knöpfe: in schmalen Listen (compact, z. B. Woche) erst beim Darüberfahren, schwebend über der Zeile */}
+      <div
+        className={
+          compact
+            ? 'flex items-center lg:absolute lg:top-1.5 lg:right-1.5 lg:z-10 lg:hidden lg:rounded-lg lg:bg-white/95 lg:shadow-sm lg:ring-1 lg:ring-slate-200 lg:group-focus-within:flex lg:group-hover:flex dark:lg:bg-slate-900/95 dark:lg:ring-slate-700'
+            : 'flex items-start'
+        }
+      >
       {/* 👏 für Erledigtes anderer – bzw. Anzeige, wer mich gefeiert hat */}
       {canGiveKudos(task, me) && (
         <button
@@ -288,6 +298,7 @@ export default function TaskItem({ task, scheduledAt, goals = [], spaces = [] }:
       >
         <X aria-hidden className="size-4" />
       </button>
+      </div>
       </div>
       {checklistOpen && !task.done && <Checklist task={task} />}
       {isMobile && (

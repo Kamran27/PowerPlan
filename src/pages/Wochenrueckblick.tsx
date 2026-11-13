@@ -89,8 +89,7 @@ export default function Wochenrueckblick() {
     <div className="max-w-3xl">
       <PageHeader
         title="Wochenrückblick"
-        subtitle={`KW ${isoWeekNumber(week)} (${formatDayShort(week)} – ${formatDayShort(weekEnd)}) · Planung für KW ${isoWeekNumber(planWeek)}`}
-      />
+        subtitle={`KW ${isoWeekNumber(week)} (${formatDayShort(week)} – ${formatDayShort(weekEnd)}) · Planung für KW ${isoWeekNumber(planWeek)}`} cat="sleeping" />
       {review && (
         <p className="mb-4 rounded-xl bg-emerald-50 p-3 text-sm text-emerald-800 ring-1 ring-emerald-200 dark:bg-emerald-500/10 dark:text-emerald-200 dark:ring-emerald-500/30">
           ✅ Für diese Woche schon erledigt am {formatDayShort(localDateOf(review.savedAt))}. Du kannst alles noch anpassen.

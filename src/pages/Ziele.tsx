@@ -39,7 +39,7 @@ export default function Ziele() {
 
   return (
     <div className="max-w-3xl">
-      <PageHeader title="Ziele" subtitle="Was diese Woche und diesen Monat wirklich zählt." />
+      <PageHeader title="Ziele" subtitle="Was diese Woche und diesen Monat wirklich zählt." cat="loaf" />
 
       {/* Wochenfokus */}
       <section>

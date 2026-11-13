@@ -39,7 +39,7 @@ export default function Gemeinsam() {
 
   return (
     <div className="max-w-3xl">
-      <PageHeader title="Gemeinsam" subtitle="Bereiche, die ihr teilt – Aufgaben und Einkaufslisten für alle Mitglieder." />
+      <PageHeader title="Gemeinsam" subtitle="Bereiche, die ihr teilt – Aufgaben und Einkaufslisten für alle Mitglieder." cat="pair" />
 
       {/* Einladungen an mich */}
       {pendingInvites.length > 0 && (
