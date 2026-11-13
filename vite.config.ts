@@ -26,7 +26,7 @@ export default defineConfig(({ mode }) => {
           scope: base,
           display: 'standalone',
           background_color: '#f8fafc',
-          theme_color: '#4f46e5',
+          theme_color: '#7c3aed',
           icons: [
             { src: 'pwa-192.png', sizes: '192x192', type: 'image/png' },
             { src: 'pwa-512.png', sizes: '512x512', type: 'image/png' },
@@ -34,7 +34,7 @@ export default defineConfig(({ mode }) => {
           ],
         },
         workbox: {
-          globPatterns: ['**/*.{js,css,html,png,svg,ico}'],
+          globPatterns: ['**/*.{js,css,html,png,svg,ico,woff2}'], // woff2 = Schrift Inter, auch offline
           navigateFallback: `${base}index.html`, // alle Seiten (/heute, /ziele …) funktionieren offline
           importScripts: ['push-sw.js'], // Push-Erinnerungen (public/push-sw.js)
         },

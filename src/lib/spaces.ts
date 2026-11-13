@@ -17,6 +17,30 @@ export function shortName(email?: string): string {
   return email ? email.split('@')[0] : ''
 }
 
+/** Initialen aus einer E-Mail: „anna.muster@…“ → „AM“, „kamran@…“ → „KA“. */
+export function initials(email?: string): string {
+  const name = shortName(email)
+  const parts = name.split(/[._\-+]+/).filter(Boolean)
+  const raw = parts.length >= 2 ? parts[0][0] + parts[1][0] : name.slice(0, 2)
+  return raw.toUpperCase() || '?'
+}
+
+/** Feste Farbe pro Person (aus der E-Mail berechnet) – auf allen Geräten gleich. */
+export const PERSON_COLORS = [
+  'bg-sky-100 text-sky-800 ring-sky-300 dark:bg-sky-500/20 dark:text-sky-200 dark:ring-sky-500/40',
+  'bg-rose-100 text-rose-800 ring-rose-300 dark:bg-rose-500/20 dark:text-rose-200 dark:ring-rose-500/40',
+  'bg-teal-100 text-teal-800 ring-teal-300 dark:bg-teal-500/20 dark:text-teal-200 dark:ring-teal-500/40',
+  'bg-amber-100 text-amber-800 ring-amber-300 dark:bg-amber-500/20 dark:text-amber-200 dark:ring-amber-500/40',
+  'bg-fuchsia-100 text-fuchsia-800 ring-fuchsia-300 dark:bg-fuchsia-500/20 dark:text-fuchsia-200 dark:ring-fuchsia-500/40',
+  'bg-lime-100 text-lime-800 ring-lime-300 dark:bg-lime-500/20 dark:text-lime-200 dark:ring-lime-500/40',
+]
+
+export function personColorIndex(email?: string): number {
+  let h = 0
+  for (const ch of (email ?? '').toLowerCase()) h = (h * 31 + ch.charCodeAt(0)) >>> 0
+  return h % PERSON_COLORS.length
+}
+
 /* ---------- Sichtbarkeit & Punkte bei gemeinsamen Aufgaben ---------- */
 
 /**

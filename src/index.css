@@ -1,10 +1,37 @@
 @import "tailwindcss";
+@import "@fontsource-variable/inter";
 
 /* Dunkel-Modus per Klasse „dark“ auf <html> (gesetzt aus Einstellungen → Darstellung, Standard: wie das System) */
 @custom-variant dark (&:where(.dark, .dark *));
 
 @theme {
-  --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  /* Schrift: Inter (wird mit der App ausgeliefert – auch offline) */
+  --font-sans: "Inter Variable", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+
+  /* Eigene Farbwelt, zentral: Akzent Violett statt Indigo, Grau neutral (Zink) statt bläulich (Slate).
+     Alle Klassen wie bg-indigo-600 / text-slate-500 nehmen automatisch die neuen Farben. */
+  --color-indigo-50: var(--color-violet-50);
+  --color-indigo-100: var(--color-violet-100);
+  --color-indigo-200: var(--color-violet-200);
+  --color-indigo-300: var(--color-violet-300);
+  --color-indigo-400: var(--color-violet-400);
+  --color-indigo-500: var(--color-violet-500);
+  --color-indigo-600: var(--color-violet-600);
+  --color-indigo-700: var(--color-violet-700);
+  --color-indigo-800: var(--color-violet-800);
+  --color-indigo-900: var(--color-violet-900);
+  --color-indigo-950: var(--color-violet-950);
+  --color-slate-50: var(--color-zinc-50);
+  --color-slate-100: var(--color-zinc-100);
+  --color-slate-200: var(--color-zinc-200);
+  --color-slate-300: var(--color-zinc-300);
+  --color-slate-400: var(--color-zinc-400);
+  --color-slate-500: var(--color-zinc-500);
+  --color-slate-600: var(--color-zinc-600);
+  --color-slate-700: var(--color-zinc-700);
+  --color-slate-800: var(--color-zinc-800);
+  --color-slate-900: var(--color-zinc-900);
+  --color-slate-950: var(--color-zinc-950);
 }
 
 html {
@@ -12,4 +39,22 @@ html {
 }
 html.dark {
   color-scheme: dark;
+}
+
+body {
+  /* Inter: etwas rundere Ziffern und Buchstaben */
+  font-feature-settings: "cv11", "ss01";
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Lade-Platzhalter: sanftes Pulsieren */
+@keyframes pp-shimmer {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.45; }
+}
+.skeleton {
+  animation: pp-shimmer 1.4s ease-in-out infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .skeleton { animation: none; }
 }

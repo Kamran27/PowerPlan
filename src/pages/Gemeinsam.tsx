@@ -5,6 +5,7 @@ import PageHeader from '../components/PageHeader'
 import { useToast } from '../components/Toast'
 import { db } from '../db'
 import { createSpace, shortName } from '../lib/spaces'
+import Skeleton from '../components/Skeleton'
 
 const card = 'rounded-2xl bg-white p-4 shadow-sm ring-1 ring-slate-200 dark:bg-slate-900 dark:ring-slate-800'
 
@@ -91,6 +92,7 @@ export default function Gemeinsam() {
       </form>
 
       {/* Bereiche */}
+      {!spaces && <Skeleton rows={2} className="mt-4" />}
       {spaces && spaces.length === 0 && (
         <p className="mt-4 rounded-2xl border border-dashed border-slate-300 p-8 text-center text-sm text-slate-500 dark:border-slate-700 dark:text-slate-400">
           Noch keine gemeinsamen Bereiche. Leg oben einen an und lade deine Partnerin per E-Mail ein.

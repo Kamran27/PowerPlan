@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { CalendarCheck, CalendarDays, ChartColumn, Ellipsis, ListChecks, Repeat, Search, Settings, Sun, Target, Users } from 'lucide-react'
 import { NavLink, Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-dom'
 import Heute from './pages/Heute'
 import Woche from './pages/Woche'
@@ -24,16 +25,16 @@ import LegacyImportBanner from './components/LegacyImportBanner'
  * more = auf dem Handy im „Mehr“-Menü statt in der Leiste (zu wenig Platz für alle).
  */
 const navItems = [
-  { to: '/heute', label: 'Heute', short: 'Heute', icon: '☀️' },
-  { to: '/woche', label: 'Woche', short: 'Woche', icon: '🗓️' },
-  { to: '/aufgaben', label: 'Aufgaben', short: 'Aufgaben', icon: '✅' },
-  { to: '/gemeinsam', label: 'Gemeinsam', short: 'Gemeinsam', icon: '👥' },
-  { to: '/gewohnheiten', label: 'Gewohnheiten', short: 'Routinen', icon: '🔁' },
-  { to: '/ziele', label: 'Ziele', short: 'Ziele', icon: '🎯' },
-  { to: '/suche', label: 'Suche', short: 'Suche', icon: '🔍', more: true },
-  { to: '/wochenrueckblick', label: 'Wochenrückblick', short: 'Rückblick', icon: '🗓️', more: true },
-  { to: '/statistik', label: 'Statistik', short: 'Statistik', icon: '📈', more: true },
-  { to: '/einstellungen', label: 'Einstellungen', short: 'Einstellungen', icon: '⚙️', more: true },
+  { to: '/heute', label: 'Heute', short: 'Heute', icon: Sun },
+  { to: '/woche', label: 'Woche', short: 'Woche', icon: CalendarDays },
+  { to: '/aufgaben', label: 'Aufgaben', short: 'Aufgaben', icon: ListChecks },
+  { to: '/gemeinsam', label: 'Gemeinsam', short: 'Gemeinsam', icon: Users },
+  { to: '/gewohnheiten', label: 'Gewohnheiten', short: 'Routinen', icon: Repeat },
+  { to: '/ziele', label: 'Ziele', short: 'Ziele', icon: Target },
+  { to: '/suche', label: 'Suche', short: 'Suche', icon: Search, more: true },
+  { to: '/wochenrueckblick', label: 'Wochenrückblick', short: 'Rückblick', icon: CalendarCheck, more: true },
+  { to: '/statistik', label: 'Statistik', short: 'Statistik', icon: ChartColumn, more: true },
+  { to: '/einstellungen', label: 'Einstellungen', short: 'Einstellungen', icon: Settings, more: true },
 ]
 
 function navClass({ isActive }: { isActive: boolean }) {
@@ -87,7 +88,7 @@ export default function App() {
             {navItems.map((item) => (
               <li key={item.to} className={item.more ? 'max-md:hidden' : 'max-md:flex-1'}>
                 <NavLink to={item.to} className={navClass} aria-label={item.label}>
-                  <span aria-hidden>{item.icon}</span>
+                  <item.icon aria-hidden className="size-5 shrink-0" strokeWidth={1.75} />
                   <span className="max-md:hidden">{item.label}</span>
                   <span className="md:hidden" aria-hidden>
                     {item.short}
@@ -103,7 +104,7 @@ export default function App() {
                 aria-label="Mehr"
                 className={navClass({ isActive: moreActive || moreOpen }) + ' w-full'}
               >
-                <span aria-hidden>⋯</span>
+                <Ellipsis aria-hidden className="size-5" strokeWidth={1.75} />
                 <span aria-hidden>Mehr</span>
               </button>
               {moreOpen && (
@@ -118,7 +119,7 @@ export default function App() {
                           `flex items-center gap-2 rounded-lg px-3 py-2 text-sm ${isActive ? 'bg-indigo-50 text-indigo-700 dark:bg-indigo-500/15 dark:text-indigo-300' : 'hover:bg-slate-100 dark:hover:bg-slate-800'}`
                         }
                       >
-                        <span aria-hidden>{i.icon}</span> {i.label}
+                        <i.icon aria-hidden className="size-4" strokeWidth={1.75} /> {i.label}
                       </NavLink>
                     ))}
                 </div>

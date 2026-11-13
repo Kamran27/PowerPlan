@@ -1,3 +1,4 @@
+import { CalendarClock, Clock, ListChecks, Repeat as RepeatIcon, SkipForward, Timer, X } from 'lucide-react'
 import { useState, type FormEvent } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db, type Goal, type Space, type Task, type TimeBlock } from '../db'
@@ -20,6 +21,7 @@ import { scheduleTaskToday, TASK_DRAG_TYPE } from '../lib/timeblocks'
 import { repeatLabel, type Repeat } from '../lib/repeat'
 import RepeatSelect from './RepeatSelect'
 import TimeRangeInput from './TimeRangeInput'
+import Avatar from './Avatar'
 import { addSubtask, deleteSubtask, subtaskProgress, toggleSubtask } from '../lib/subtasks'
 import { startFocus, stopFocus, useFocus } from '../lib/focus'
 import { touchDragProps } from '../lib/touchDrag'
@@ -50,6 +52,7 @@ export default function TaskItem({ task, scheduledAt, goals = [], spaces = [] }:
   const [editing, setEditing] = useState(false)
   const [editBlock, setEditBlock] = useState<TimeBlock | undefined>()
   const [checklistOpen, setChecklistOpen] = useState(false)
+  const me = useMyEmail()
   const focus = useFocus()
   const toggle = useToggleTask()
   const toast = useToast()
@@ -120,11 +123,19 @@ export default function TaskItem({ task, scheduledAt, goals = [], spaces = [] }:
               </span>
             )}
             {due && <span className={`font-medium ${dueColors[due.state]}`}>{due.label}</span>}
-            {scheduledAt && <span className="text-emerald-600 dark:text-emerald-400">🕒 {scheduledAt} Uhr</span>}
-            {task.repeat && <span className="text-violet-600 dark:text-violet-400">🔁 {repeatLabel(task.repeat)}</span>}
+            {scheduledAt && (
+              <span className="flex items-center gap-1 text-emerald-600 dark:text-emerald-400">
+                <Clock aria-hidden className="size-3.5" /> {scheduledAt} Uhr
+              </span>
+            )}
+            {task.repeat && (
+              <span className="flex items-center gap-1 text-violet-600 dark:text-violet-400">
+                <RepeatIcon aria-hidden className="size-3.5" /> {repeatLabel(task.repeat)}
+              </span>
+            )}
             {progress && (
               <span className="flex items-center gap-1.5 text-slate-600 dark:text-slate-300">
-                ☑️ {progress.done}/{progress.total}
+                <ListChecks aria-hidden className="size-3.5" /> {progress.done}/{progress.total}
                 <span className="h-1.5 w-12 overflow-hidden rounded-full bg-slate-200 dark:bg-slate-700">
                   <span className="block h-full rounded-full bg-emerald-500" style={{ width: `${progress.pct}%` }} />
                 </span>
@@ -132,11 +143,19 @@ export default function TaskItem({ task, scheduledAt, goals = [], spaces = [] }:
             )}
             {goal && <span className="truncate text-slate-500 dark:text-slate-400">🎯 {goal.title}</span>}
             {space && (
-              <span className="truncate text-sky-700 dark:text-sky-300">
-                👥 {space.emoji ? `${space.emoji} ` : ''}
-                {space.title}
-                {task.assignee ? ` → ${shortName(task.assignee)}` : ' · alle'}
-                {task.rotation?.length ? ' · 🔄 abwechselnd' : ''}
+              <span className="flex min-w-0 items-center gap-1.5 text-sky-700 dark:text-sky-300">
+                <span className="truncate">
+                  {space.emoji ? `${space.emoji} ` : '👥 '}
+                  {space.title}
+                </span>
+                {task.assignee ? (
+                  <span className="flex items-center gap-1">
+                    → <Avatar email={task.assignee} size="sm" me={me} />
+                  </span>
+                ) : (
+                  <span>· alle</span>
+                )}
+                {task.rotation?.length ? <span className="flex items-center gap-0.5">· <RepeatIcon aria-hidden className="size-3" /> abwechselnd</span> : null}
               </span>
             )}
           </span>
@@ -148,11 +167,11 @@ export default function TaskItem({ task, scheduledAt, goals = [], spaces = [] }:
           aria-label="Checkliste"
           aria-expanded={checklistOpen}
           title="Checkliste (Unteraufgaben)"
-          className={`rounded-md px-1.5 hover:text-indigo-600 focus:opacity-100 max-md:opacity-100 ${
+          className={`rounded-md p-1.5 hover:text-indigo-600 focus:opacity-100 max-md:opacity-100 ${
             checklistOpen || progress ? 'text-slate-500 opacity-100' : 'text-slate-400 opacity-0 group-hover:opacity-100'
           }`}
         >
-          ☑️
+          <ListChecks aria-hidden className="size-4" />
         </button>
       )}
       {!task.done && (
@@ -160,11 +179,11 @@ export default function TaskItem({ task, scheduledAt, goals = [], spaces = [] }:
           onClick={() => (focusing ? stopFocus() : startFocus(task))}
           aria-label={focusing ? 'Fokus beenden' : 'Fokus-Timer starten'}
           title={focusing ? 'Fokus beenden' : 'Fokus-Timer: konzentriert an dieser Aufgabe arbeiten'}
-          className={`rounded-md px-1.5 hover:text-amber-600 focus:opacity-100 max-md:opacity-100 ${
+          className={`rounded-md p-1.5 hover:text-amber-600 focus:opacity-100 max-md:opacity-100 ${
             focusing ? 'text-amber-600 opacity-100' : 'text-slate-400 opacity-0 group-hover:opacity-100'
           }`}
         >
-          ⏱️
+          <Timer aria-hidden className="size-4" />
         </button>
       )}
       {!task.done && !scheduledAt && (
@@ -172,9 +191,9 @@ export default function TaskItem({ task, scheduledAt, goals = [], spaces = [] }:
           onClick={schedule}
           aria-label="In den Tagesplan einplanen"
           title="In die nächste freie Stunde einplanen"
-          className="rounded-md px-1.5 text-slate-400 opacity-0 group-hover:opacity-100 hover:text-indigo-600 focus:opacity-100 max-md:opacity-100"
+          className="rounded-md p-1.5 text-slate-400 opacity-0 group-hover:opacity-100 hover:text-indigo-600 focus:opacity-100 max-md:opacity-100"
         >
-          🕒
+          <CalendarClock aria-hidden className="size-4" />
         </button>
       )}
       {!task.done && task.dueDate && task.dueDate <= todayISO() && (
@@ -182,17 +201,17 @@ export default function TaskItem({ task, scheduledAt, goals = [], spaces = [] }:
           onClick={toTomorrow}
           aria-label="Auf morgen verschieben"
           title="Auf morgen verschieben"
-          className="rounded-md px-1.5 text-slate-400 opacity-0 group-hover:opacity-100 hover:text-indigo-600 focus:opacity-100 max-md:opacity-100"
+          className="rounded-md p-1.5 text-slate-400 opacity-0 group-hover:opacity-100 hover:text-indigo-600 focus:opacity-100 max-md:opacity-100"
         >
-          ⏭️
+          <SkipForward aria-hidden className="size-4" />
         </button>
       )}
       <button
         onClick={remove}
         aria-label="Aufgabe löschen"
-        className="rounded-md px-1.5 text-slate-400 opacity-0 group-hover:opacity-100 hover:text-rose-600 focus:opacity-100 max-md:opacity-100"
+        className="rounded-md p-1.5 text-slate-400 opacity-0 group-hover:opacity-100 hover:text-rose-600 focus:opacity-100 max-md:opacity-100"
       >
-        ✕
+        <X aria-hidden className="size-4" />
       </button>
       </div>
       {checklistOpen && !task.done && <Checklist task={task} />}
@@ -221,7 +240,7 @@ function Checklist({ task }: { task: Task }) {
               aria-label={`${s.title} löschen`}
               className="px-1 text-slate-400 opacity-0 group-hover/sub:opacity-100 hover:text-rose-600 max-md:opacity-100"
             >
-              ✕
+              <X aria-hidden className="size-3.5" />
             </button>
           </li>
         ))}

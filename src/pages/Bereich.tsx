@@ -2,6 +2,7 @@ import { useLiveQuery } from 'dexie-react-hooks'
 import { useEffect, useState, type FormEvent } from 'react'
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import MealPlanView from '../components/MealPlanView'
+import Avatar from '../components/Avatar'
 import RecipesPanel from '../components/RecipesPanel'
 import ShoppingListView from '../components/ShoppingListView'
 import TaskInput from '../components/TaskInput'
@@ -20,6 +21,7 @@ import {
   shortName,
 } from '../lib/spaces'
 import { useMyEmail } from '../lib/useMe'
+import Skeleton from '../components/Skeleton'
 
 const card = 'rounded-2xl bg-white p-5 shadow-sm ring-1 ring-slate-200 dark:bg-slate-900 dark:ring-slate-800'
 type Tab = 'aufgaben' | 'einkauf' | 'essen' | 'mitglieder'
@@ -47,7 +49,7 @@ export default function Bereich() {
     if (lists?.length && !lists.some((l) => l.id === listId)) setListId(lists[0].id)
   }, [lists, listId])
 
-  if (space === undefined) return <p className="text-sm text-slate-500">Lade …</p>
+  if (space === undefined) return <Skeleton rows={4} />
   if (!space) {
     return (
       <p className="text-sm text-slate-500">
@@ -118,7 +120,7 @@ export default function Bereich() {
               </button>
             ))}
           </div>
-          {tasks && <TaskList tasks={shown} empty="Keine Aufgaben in diesem Bereich." />}
+          {tasks ? <TaskList tasks={shown} empty="Keine Aufgaben in diesem Bereich." /> : <Skeleton />}
         </section>
       )}
 
@@ -167,15 +169,17 @@ export default function Bereich() {
           <ul className="mt-3 grid gap-2 text-sm">
             {space.createdByEmail && (
               <li className="flex items-center gap-2">
-                <span>👑</span>
+                <Avatar email={space.createdByEmail} me={me} />
                 <span className="truncate">{space.createdByEmail === me ? `Ich (${me})` : space.createdByEmail}</span>
+                <span aria-hidden>👑</span>
                 <span className="ml-auto text-xs text-slate-500">Ersteller</span>
               </li>
             )}
             {members.map((m) => (
               <li key={m.id} className="flex items-center gap-2">
-                <span>{m.accepted ? '✅' : m.rejected ? '🚫' : '⏳'}</span>
+                <Avatar email={m.email} me={me} />
                 <span className="truncate">{m.email === me ? `Ich (${me})` : m.email}</span>
+                <span aria-hidden>{m.accepted ? '✅' : m.rejected ? '🚫' : '⏳'}</span>
                 <span className="ml-auto text-xs text-slate-500">{m.accepted ? 'dabei' : m.rejected ? 'abgelehnt' : 'eingeladen'}</span>
                 {isOwner && m.email !== me && (
                   <button
@@ -240,9 +244,14 @@ function SpaceHeader({ space, people, me }: { space: Space; people: string[]; me
           ✏️
         </button>
       </h1>
-      <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-        {people.map((p) => (p === me ? 'Ich' : shortName(p))).join(', ')}
-      </p>
+      <div className="mt-2 flex items-center gap-1.5 text-sm text-slate-500 dark:text-slate-400">
+        <span className="flex -space-x-1.5">
+          {people.map((p) => (
+            <Avatar key={p} email={p} me={me} />
+          ))}
+        </span>
+        <span className="ml-1">{people.map((p) => (p === me ? 'Ich' : shortName(p))).join(', ')}</span>
+      </div>
     </header>
   )
 }

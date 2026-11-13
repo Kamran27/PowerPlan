@@ -20,7 +20,7 @@ export function applyTheme(theme: Theme = getTheme()) {
   const dark = theme === 'dark' || (theme === 'system' && media().matches)
   document.documentElement.classList.toggle('dark', dark)
   // Farbe der Statusleiste (iPhone/Android) passend zum Modus
-  document.querySelector('meta[name="theme-color"]')?.setAttribute('content', dark ? '#0f172a' : '#4f46e5')
+  document.querySelector('meta[name="theme-color"]')?.setAttribute('content', dark ? '#09090b' : '#7c3aed')
 }
 
 export function setTheme(theme: Theme) {

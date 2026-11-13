@@ -1,6 +1,11 @@
 import { useLiveQuery } from 'dexie-react-hooks'
 import { useMemo } from 'react'
+import { Flame, Star, Trophy, UtensilsCrossed } from 'lucide-react'
 import { Link } from 'react-router-dom'
+import DayRings, { type Ring } from '../components/DayRings'
+import NextUp from '../components/NextUp'
+import { defaultMinutes } from '../lib/focus'
+import { isDueOn } from '../lib/habits'
 import DayReview from '../components/DayReview'
 import DayTimeline from '../components/DayTimeline'
 import HabitsToday from '../components/HabitsToday'
@@ -17,6 +22,7 @@ import { useDayBlocks, useScheduledTimes } from '../lib/useDayBlocks'
 import { useHabits } from '../lib/useHabits'
 import { visibleForMe } from '../lib/spaces'
 import { useMyEmail } from '../lib/useMe'
+import Skeleton from '../components/Skeleton'
 
 function greeting(hour: number) {
   if (hour < 11) return 'Guten Morgen'
@@ -55,12 +61,23 @@ export default function Heute() {
   const doneTasks = list.filter((t) => t.done)
   const openTasks = list.filter((t) => !t.done)
   const total = list.length
-  const pct = total ? Math.round((doneTasks.length / total) * 100) : 0
 
   const game = useGame()
   const pointsToday = game.byDay.get(today) ?? 0
   const streak = useMemo(() => streaks(myTasks, today), [myTasks, today])
   const allDoneToday = total > 0 && openTasks.length === 0
+
+  // Tagesringe: Aufgaben, Routinen (heute fällige Gewohnheiten), Fokus-Minuten (Ziel = 2 Sitzungen)
+  const focusMinutes = useLiveQuery(async () => (await db.focusSessions.where('date').equals(today).toArray()).reduce((n, s) => n + s.minutes, 0), [today]) ?? 0
+  const focusGoal = defaultMinutes() * 2
+  const habitsDue = (habits ?? []).filter((h) => isDueOn(h, today))
+  const habitsDone = habitsDue.filter((h) => doneByHabit.get(h.id)?.has(today)).length
+  const rings: Ring[] = [
+    { label: 'Aufgaben', value: total ? doneTasks.length / total : 0, detail: `${doneTasks.length} / ${total}`, color: 'stroke-indigo-500', track: 'stroke-indigo-100 dark:stroke-indigo-500/20', dot: 'bg-indigo-500' },
+    { label: 'Routinen', value: habitsDue.length ? habitsDone / habitsDue.length : 0, detail: `${habitsDone} / ${habitsDue.length}`, color: 'stroke-emerald-500', track: 'stroke-emerald-100 dark:stroke-emerald-500/20', dot: 'bg-emerald-500' },
+    { label: 'Fokus', value: focusMinutes / focusGoal, detail: `${focusMinutes} / ${focusGoal} Min.`, color: 'stroke-amber-500', track: 'stroke-amber-100 dark:stroke-amber-500/20', dot: 'bg-amber-500' },
+  ]
+  const allRingsClosed = total > 0 && rings.every((r) => r.value >= 1)
 
   return (
     <>
@@ -82,39 +99,37 @@ export default function Heute() {
         </Link>
       )}
 
-      <section className="mb-6 rounded-2xl bg-white p-5 shadow-sm ring-1 ring-slate-200 dark:bg-slate-900 dark:ring-slate-800">
-        <div className="flex items-baseline justify-between">
-          <h2 className="font-semibold">Tagesfortschritt</h2>
-          <span className="text-sm text-slate-500 dark:text-slate-400">
-            {total ? `${doneTasks.length} von ${total} erledigt` : 'Noch nichts geplant'}
-          </span>
+      {blocks && <NextUp blocks={blocks} tasks={tasksById} />}
+
+      <section className="mb-6 rounded-3xl bg-white p-5 shadow-sm ring-1 ring-slate-200 md:p-6 dark:bg-slate-900 dark:ring-slate-800">
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          <DayRings rings={rings} />
+          {allRingsClosed && (
+            <p className="rounded-xl bg-emerald-50 px-3 py-2 text-sm font-medium text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-300">
+              Alle Ringe geschlossen – starker Tag! 🎉
+            </p>
+          )}
         </div>
-        <div className="mt-3 h-2 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800">
-          <div
-            className={`h-full rounded-full transition-all duration-500 ${allDoneToday ? 'bg-emerald-500' : 'bg-indigo-500'}`}
-            style={{ width: `${pct}%` }}
-          />
-        </div>
-        <div className="mt-4 flex flex-wrap items-center gap-x-6 gap-y-2 text-sm">
-          <span>
-            <span aria-hidden>🏆</span> <strong className="tabular-nums">{pointsToday}</strong> Punkte heute
+        <div className="mt-5 flex flex-wrap items-center gap-x-5 gap-y-2 border-t border-slate-100 pt-4 text-sm dark:border-slate-800">
+          <span className="flex items-center gap-1.5">
+            <Trophy aria-hidden className="size-4 text-amber-500" /> <strong className="tabular-nums">{pointsToday}</strong> Punkte heute
           </span>
-          <span title={`Bester Streak: ${streak.best} ${streak.best === 1 ? 'Tag' : 'Tage'}`}>
-            <span aria-hidden>🔥</span> <strong className="tabular-nums">{streak.current}</strong>{' '}
+          <span className="flex items-center gap-1.5" title={`Bester Streak: ${streak.best} ${streak.best === 1 ? 'Tag' : 'Tage'}`}>
+            <Flame aria-hidden className="size-4 text-orange-500" /> <strong className="tabular-nums">{streak.current}</strong>{' '}
             {streak.current === 1 ? 'Tag' : 'Tage'} Streak
           </span>
-          <span title={`Noch ${game.level.needed - game.level.into} Punkte bis Level ${game.level.level + 1}`}>
-            <span aria-hidden>⭐</span> Level <strong className="tabular-nums">{game.level.level}</strong>{' '}
+          <span className="flex items-center gap-1.5" title={`Noch ${game.level.needed - game.level.into} Punkte bis Level ${game.level.level + 1}`}>
+            <Star aria-hidden className="size-4 text-indigo-500" /> Level <strong className="tabular-nums">{game.level.level}</strong>{' '}
             <span className="text-slate-500 dark:text-slate-400">({game.level.pct} %)</span>
           </span>
           {todaysMeals && todaysMeals.length > 0 && (
-            <span title="Aus dem Essensplan eurer gemeinsamen Bereiche">
-              <span aria-hidden>🍽️</span> {todaysMeals.map((m) => m.title).join(', ')}
+            <span className="flex items-center gap-1.5" title="Aus dem Essensplan eurer gemeinsamen Bereiche">
+              <UtensilsCrossed aria-hidden className="size-4 text-slate-500" /> {todaysMeals.map((m) => m.title).join(', ')}
             </span>
           )}
           {allDoneToday && (
             <span className="font-medium text-emerald-600 dark:text-emerald-400">
-              Alles erledigt – der Tag zählt für deinen Streak! 🎉
+              Alles erledigt – der Tag zählt für deinen Streak!
             </span>
           )}
         </div>
@@ -137,15 +152,17 @@ export default function Heute() {
           <h2 className="mb-2 font-semibold">Heute zu tun</h2>
           <TaskInput defaultDueDate={today} />
           <p className="mt-2 px-1 text-xs text-slate-500 dark:text-slate-400">
-            Tipp: Aufgabe in den Tagesplan ziehen oder auf 🕒 klicken.
+            Tipp: Aufgabe in den Tagesplan ziehen (am Handy: lange drücken) oder auf den Kalender-Knopf tippen.
           </p>
           <div className="mt-1">
-            {allTasks && (
+            {allTasks ? (
               <TaskList
                 tasks={list}
                 scheduled={scheduled}
                 empty="Nichts fällig. Füge oben eine Aufgabe für heute hinzu."
               />
+            ) : (
+              <Skeleton rows={4} />
             )}
           </div>
           <div className="mt-6">

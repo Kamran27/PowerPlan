@@ -9,6 +9,7 @@ import { compareTasks } from '../lib/tasks'
 import { visibleForMe } from '../lib/spaces'
 import { useMyEmail } from '../lib/useMe'
 import { useScheduledTimes } from '../lib/useDayBlocks'
+import Skeleton from '../components/Skeleton'
 
 type Filter = 'offen' | 'heute' | 'erledigt' | 'alle'
 
@@ -52,7 +53,7 @@ export default function Aufgaben() {
           </button>
         ))}
       </div>
-      {tasks && <TaskList tasks={visible} scheduled={scheduled} empty={active.empty} />}
+      {tasks ? <TaskList tasks={visible} scheduled={scheduled} empty={active.empty} /> : <Skeleton rows={5} />}
     </div>
   )
 }

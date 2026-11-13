@@ -174,3 +174,13 @@ describe('Fokus-Timer', () => {
     expect(sessionPoints(240)).toBe(40)
   })
 })
+
+describe('Personen', () => {
+  it('bildet Initialen und eine feste Farbe pro E-Mail', async () => {
+    const { initials, personColorIndex } = await import('./spaces')
+    expect(initials('anna.muster@example.com')).toBe('AM')
+    expect(initials('kamran@example.com')).toBe('KA')
+    expect(initials(undefined)).toBe('?')
+    expect(personColorIndex('anna@example.com')).toBe(personColorIndex('ANNA@example.com'))
+  })
+})
