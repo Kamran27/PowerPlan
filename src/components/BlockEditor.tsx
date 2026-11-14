@@ -4,11 +4,11 @@ import { toMinutes } from '../lib/time'
 import { addBlock, deleteBlock, restoreBlock, updateBlock } from '../lib/timeblocks'
 import TimeSelect from './TimeSelect'
 import { useToast } from './Toast'
+import { softField } from '../lib/pillStyles'
 
 export type BlockDraft = Omit<TimeBlock, 'id'> & { id?: string }
 
-const fieldClass =
-  'w-full rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-sm dark:border-slate-700 dark:bg-slate-800'
+const fieldClass = softField
 
 /** Dialog zum Anlegen/Bearbeiten eines Zeitblocks. */
 export default function BlockEditor({ draft, task, onClose }: { draft: BlockDraft; task?: Task; onClose: () => void }) {
@@ -93,10 +93,10 @@ export default function BlockEditor({ draft, task, onClose }: { draft: BlockDraf
             </button>
           )}
           <div className="ml-auto flex gap-2">
-            <button type="button" onClick={onClose} className="rounded-lg px-3 py-1.5 text-sm text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800">
+            <button type="button" onClick={onClose} className="rounded-xl px-3 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800">
               Abbrechen
             </button>
-            <button type="submit" disabled={!canSave} className="rounded-lg bg-indigo-600 px-3 py-1.5 text-sm font-semibold text-white hover:bg-indigo-500 disabled:opacity-40">
+            <button type="submit" disabled={!canSave} className="rounded-xl bg-indigo-600 px-4 py-2 text-sm font-semibold text-white shadow-sm shadow-indigo-600/25 transition hover:bg-indigo-500 active:scale-95 disabled:opacity-40">
               Speichern
             </button>
           </div>

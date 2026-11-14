@@ -1,4 +1,4 @@
-import { CalendarClock, Check, Clock, ListChecks, Repeat as RepeatIcon, SkipForward, Timer, X } from 'lucide-react'
+import { CalendarClock, Check, Clock, ListChecks, Pencil, Repeat as RepeatIcon, SkipForward, Timer, X } from 'lucide-react'
 import { useState, type FormEvent } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db, type Goal, type Space, type Task, type TimeBlock } from '../db'
@@ -9,7 +9,6 @@ import {
   findTaskBlock,
   postponeTasks,
   priorityInfo,
-  PRIORITIES,
   restoreTask,
   saveTaskWithTime,
   type Priority,
@@ -19,8 +18,8 @@ import { assignableEmails, makeRotation, shortName } from '../lib/spaces'
 import { useMyEmail } from '../lib/useMe'
 import { scheduleTaskToday, TASK_DRAG_TYPE } from '../lib/timeblocks'
 import { repeatLabel, type Repeat } from '../lib/repeat'
-import RepeatSelect from './RepeatSelect'
-import TimeRangeInput from './TimeRangeInput'
+import { DatePills, PriorityPills, RepeatPill, RotatePill, SelectPill, TimePill } from './TaskFields'
+import { softField } from '../lib/pillStyles'
 import Avatar from './Avatar'
 import { floatPoints } from '../lib/celebrate'
 import { canGiveKudos, toggleKudos } from '../lib/kudos'
@@ -40,9 +39,6 @@ const dueColors = {
   soon: 'text-slate-600 dark:text-slate-300',
   later: 'text-slate-500 dark:text-slate-400',
 }
-
-const fieldClass =
-  'rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-sm dark:border-slate-700 dark:bg-slate-800'
 
 interface Props {
   task: Task
@@ -415,108 +411,89 @@ function TaskEditor({
   }
 
   return (
-    <div className={inSheet ? '' : 'rounded-xl bg-white p-3 shadow-sm ring-1 ring-indigo-300 dark:bg-slate-900 dark:ring-indigo-500/50'}>
-      <form onSubmit={save} onKeyDown={(e) => e.key === 'Escape' && onClose()} className="grid gap-2">
-        <input
-          autoFocus
-          value={title}
-          onChange={(e) => setTitle(e.target.value)}
-          aria-label="Titel"
-          className="bg-transparent px-1 py-1 font-medium outline-none"
-        />
+    <div
+      className={
+        inSheet
+          ? ''
+          : 'my-1 rounded-2xl bg-white p-3 shadow-md ring-2 ring-indigo-500/40 dark:bg-slate-900 dark:ring-indigo-400/40'
+      }
+    >
+      <form onSubmit={save} onKeyDown={(e) => e.key === 'Escape' && onClose()} className="grid gap-2.5">
+        {/* Titel */}
+        <div className="flex items-center gap-2">
+          <span aria-hidden className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600 dark:bg-indigo-500/15 dark:text-indigo-300">
+            <Pencil className="size-4" strokeWidth={2.25} />
+          </span>
+          <input
+            autoFocus
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            aria-label="Titel"
+            placeholder="Titel der Aufgabe"
+            className="min-w-0 flex-1 bg-transparent py-1.5 text-base font-medium outline-none placeholder:text-slate-400"
+          />
+        </div>
         <textarea
           value={notes}
           onChange={(e) => setNotes(e.target.value)}
           placeholder="Notizen (optional)"
           aria-label="Notizen"
           rows={2}
-          className={`${fieldClass} resize-y`}
+          className={`${softField} resize-y`}
         />
-        <div className="flex flex-wrap items-center gap-2">
-          <select
-            value={priority}
-            onChange={(e) => setPriority(Number(e.target.value) as Priority)}
-            aria-label="Priorität"
-            className={fieldClass}
-          >
-            {PRIORITIES.map((p) => (
-              <option key={p.value} value={p.value}>
-                Priorität: {p.label}
-              </option>
-            ))}
-          </select>
-          <input
-            type="date"
-            value={dueDate}
-            onChange={(e) => setDueDate(e.target.value)}
-            aria-label="Fällig am"
-            className={fieldClass}
-          />
-          <TimeRangeInput
+
+        {/* Optionen als Pillen – wie bei „Neue Aufgabe“ */}
+        <div className="flex flex-wrap items-center gap-1.5">
+          <PriorityPills value={priority} onChange={setPriority} />
+          <DatePills value={dueDate} onChange={setDueDate} />
+          <TimePill
             start={start}
             end={end}
             onChange={(s, e) => {
               setStart(s)
               setEnd(e)
             }}
-            className={fieldClass}
+            clearLabel={block ? 'Aus dem Tagesplan entfernen' : 'Keine Zeit'}
           />
-          <RepeatSelect value={repeat} onChange={setRepeat} className={fieldClass} />
-          <select
-            value={goalId ?? ''}
-            onChange={(e) => setGoalId(e.target.value || undefined)}
-            aria-label="Monatsziel"
-            className={`${fieldClass} max-w-56`}
-          >
-            <option value="">🎯 Kein Ziel</option>
+          <RepeatPill value={repeat} onChange={setRepeat} />
+          <SelectPill value={goalId ?? ''} onChange={(v) => setGoalId(v || undefined)} label="Monatsziel" active={!!goalId} icon="goal">
+            <option value="">Kein Ziel</option>
             {selectableGoals(goals, task.goalId).map((g) => (
               <option key={g.id} value={g.id}>
-                🎯 {g.title} ({monthLabel(g.month).split(' ')[0]})
+                {g.title} ({monthLabel(g.month).split(' ')[0]})
               </option>
             ))}
-          </select>
+          </SelectPill>
           {space && (
-            <select
-              value={assignee}
-              onChange={(e) => setAssignee(e.target.value)}
-              aria-label="Zuständig"
-              className={`${fieldClass} max-w-56`}
-            >
+            <SelectPill value={assignee} onChange={setAssignee} label="Zuständig" active={!!assignee}>
               <option value="">👥 Für alle</option>
               {people.map((p) => (
                 <option key={p} value={p}>
                   👤 {p === me ? 'Ich' : shortName(p)}
                 </option>
               ))}
-            </select>
+            </SelectPill>
           )}
-          {space && repeat && people.length > 1 && (
-            <label className="flex items-center gap-1.5 text-sm" title="Nach jedem Erledigen ist die nächste Person dran">
-              <input type="checkbox" checked={rotate} onChange={(e) => setRotate(e.target.checked)} className="size-4 accent-indigo-600" />
-              🔄 Abwechselnd
-            </label>
-          )}
+          {space && repeat && people.length > 1 && <RotatePill checked={rotate} onChange={setRotate} />}
         </div>
-        <div className="flex flex-wrap items-center gap-3 text-xs">
-          {start && (
-            <button
-              type="button"
-              onClick={() => {
-                setStart('')
-                setEnd('')
-              }}
-              className="text-slate-500 hover:underline"
-            >
-              {block ? 'Aus dem Tagesplan entfernen' : 'Keine Zeit'}
-            </button>
-          )}
+
+        <div className="flex flex-wrap items-center gap-3 border-t border-slate-100 pt-2.5 text-xs dark:border-slate-800">
           {(start || repeat) && !dueDate && !timeError && <span className="text-slate-500 dark:text-slate-400">→ wird für heute geplant</span>}
           {timeError && <span className="text-rose-600 dark:text-rose-400">{timeError}</span>}
           <div className="ml-auto flex gap-2">
-            <button type="button" onClick={onClose} className="rounded-lg px-3 py-1.5 text-sm text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800">
+            <button
+              type="button"
+              onClick={onClose}
+              className="rounded-xl px-3 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800"
+            >
               Abbrechen
             </button>
-            <button type="submit" disabled={!canSave} className="rounded-lg bg-indigo-600 px-3 py-1.5 text-sm font-semibold text-white hover:bg-indigo-500 disabled:opacity-40">
+            <button
+              type="submit"
+              disabled={!canSave}
+              className="flex items-center gap-1.5 rounded-xl bg-indigo-600 px-4 py-2 text-sm font-semibold text-white shadow-sm shadow-indigo-600/25 transition hover:bg-indigo-500 active:scale-95 disabled:bg-slate-200 disabled:text-slate-400 disabled:shadow-none dark:disabled:bg-slate-800 dark:disabled:text-slate-500"
+            >
+              <Check aria-hidden className="size-4" strokeWidth={2.5} />
               Speichern
             </button>
           </div>

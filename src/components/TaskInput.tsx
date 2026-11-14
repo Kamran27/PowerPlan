@@ -1,7 +1,7 @@
 import { useMemo, useState, type FormEvent, type ReactNode } from 'react'
 import type { Space } from '../db'
-import { ArrowUp, CalendarDays, Clock, Plus, Sparkles, X } from 'lucide-react'
-import { addDays, formatDayShort, todayISO } from '../lib/date'
+import { ArrowUp, Plus, Sparkles } from 'lucide-react'
+import { formatDayShort, todayISO } from '../lib/date'
 import { parseQuickInput } from '../lib/quickparse'
 import { repeatLabel } from '../lib/repeat'
 import { makeRotation, shortName } from '../lib/spaces'
@@ -10,8 +10,7 @@ import { useMyEmail } from '../lib/useMe'
 import { useIsMobile } from '../lib/useIsMobile'
 import { timeRangeError } from '../lib/time'
 import type { Repeat } from '../lib/repeat'
-import RepeatSelect from './RepeatSelect'
-import TimeRangeInput from './TimeRangeInput'
+import { DatePills, PriorityPills, RepeatPill, RotatePill, SelectPill, TimePill } from './TaskFields'
 
 interface Props {
   defaultDueDate?: string
@@ -81,10 +80,6 @@ export default function TaskInput({ defaultDueDate, space, people = [], autoFocu
     onAdded?.(p ? p.title : title.trim())
   }
 
-  const today = todayISO()
-  const tomorrow = addDays(today, 1)
-  const dateMode = !dueDate ? 'none' : dueDate === today ? 'today' : dueDate === tomorrow ? 'tomorrow' : 'other'
-
   return (
     <form
       onSubmit={submit}
@@ -151,107 +146,29 @@ export default function TaskInput({ defaultDueDate, space, people = [], autoFocu
 
       {/* Optionen als Pillen */}
       <div className="mt-2 flex flex-wrap items-center gap-1.5 border-t border-slate-100 px-1 pt-2 dark:border-slate-800">
-        {/* Priorität */}
-        <div role="radiogroup" aria-label="Priorität" className="flex rounded-full bg-slate-100 p-0.5 dark:bg-slate-800">
-          {[...PRIORITIES].reverse().map((p) => (
-            <button
-              key={p.value}
-              type="button"
-              role="radio"
-              aria-checked={priority === p.value}
-              onClick={() => setPriority(p.value)}
-              className={`flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium transition ${
-                priority === p.value
-                  ? 'bg-white text-slate-900 shadow-sm dark:bg-slate-700 dark:text-white'
-                  : 'text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200'
-              }`}
-            >
-              <span className={`size-2 rounded-full ${p.dot}`} />
-              {p.label}
-            </button>
-          ))}
-        </div>
-
-        {/* Datum */}
-        <div className="flex items-center gap-1">
-          <DateChip active={dateMode === 'today'} onClick={() => setDueDate(today)}>Heute</DateChip>
-          <DateChip active={dateMode === 'tomorrow'} onClick={() => setDueDate(tomorrow)}>Morgen</DateChip>
-          <label className={`${pill} relative ${dateMode === 'other' ? pillActive : ''}`} title="Anderes Datum wählen">
-            <CalendarDays aria-hidden className="size-3.5 shrink-0" />
-            {dateMode === 'other' && <span>{formatDayShort(dueDate)}</span>}
-            {/* Unsichtbares Datumsfeld über der Pille: Klick öffnet den Kalender */}
-            <input
-              type="date"
-              value={dueDate}
-              onChange={(e) => setDueDate(e.target.value)}
-              onClick={(e) => {
-                try {
-                  e.currentTarget.showPicker()
-                } catch {
-                  /* ältere Browser: Feld bekommt den Fokus */
-                }
-              }}
-              aria-label="Fällig am"
-              className="absolute inset-0 cursor-pointer opacity-0"
-            />
-          </label>
-          {dueDate && (
-            <button type="button" onClick={() => setDueDate('')} aria-label="Kein Datum" title="Kein Datum" className="rounded-full p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-600 dark:hover:bg-slate-800">
-              <X className="size-3.5" />
-            </button>
-          )}
-        </div>
-
-        {/* Uhrzeit */}
-        <span className={`${pill} ${start ? pillActive : ''}`}>
-          <Clock aria-hidden className="size-3.5 shrink-0" />
-          <TimeRangeInput
-            start={start}
-            end={end}
-            onChange={(s, e) => {
-              setStart(s)
-              setEnd(e)
-            }}
-            className="rounded-md px-0.5"
-          />
-          {start && (
-            <button
-              type="button"
-              onClick={() => {
-                setStart('')
-                setEnd('')
-              }}
-              aria-label="Keine Zeit"
-              title="Keine Zeit"
-              className="rounded-full p-0.5 text-slate-400 hover:text-slate-600"
-            >
-              <X className="size-3.5" />
-            </button>
-          )}
-        </span>
-
-        {/* Wiederholen */}
-        <span className={`${pill} ${repeat ? pillActive : ''}`}>
-          <RepeatSelect value={repeat} onChange={setRepeat} className="cursor-pointer appearance-none bg-transparent outline-none [field-sizing:content]" />
-        </span>
-
+        <PriorityPills value={priority} onChange={setPriority} />
+        <DatePills value={dueDate} onChange={setDueDate} />
+        <TimePill
+          start={start}
+          end={end}
+          onChange={(s, e) => {
+            setStart(s)
+            setEnd(e)
+          }}
+        />
+        <RepeatPill value={repeat} onChange={setRepeat} />
         {space && (
-          <span className={`${pill} ${assignee ? pillActive : ''}`}>
-            <select value={assignee} onChange={(e) => setAssignee(e.target.value)} aria-label="Zuständig" className="cursor-pointer appearance-none bg-transparent outline-none [field-sizing:content]">
-              <option value="">👥 Für alle</option>
-              {people.map((p) => (
-                <option key={p} value={p}>
-                  👤 {p === me ? 'Ich' : shortName(p)}
-                </option>
-              ))}
-            </select>
-          </span>
+          <SelectPill value={assignee} onChange={setAssignee} label="Zuständig" active={!!assignee}>
+            <option value="">👥 Für alle</option>
+            {people.map((p) => (
+              <option key={p} value={p}>
+                👤 {p === me ? 'Ich' : shortName(p)}
+              </option>
+            ))}
+          </SelectPill>
         )}
         {space && people.length > 1 && (repeat || (useParsed && parsed.repeat)) && (
-          <label className={`${pill} cursor-pointer`} title="Nach jedem Erledigen ist die nächste Person dran">
-            <input type="checkbox" checked={rotate || (useParsed && !!parsed.rotate)} onChange={(e) => setRotate(e.target.checked)} className="size-3.5 accent-indigo-600" />
-            🔄 Abwechselnd
-          </label>
+          <RotatePill checked={rotate || (useParsed && !!parsed.rotate)} onChange={setRotate} />
         )}
       </div>
 
@@ -265,18 +182,6 @@ export default function TaskInput({ defaultDueDate, space, people = [], autoFocu
         </div>
       ) : null}
     </form>
-  )
-}
-
-const pill =
-  'inline-flex items-center gap-1.5 rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-600 transition hover:bg-slate-200/80 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700/80'
-const pillActive = '!bg-indigo-50 !text-indigo-700 ring-1 ring-indigo-200 dark:!bg-indigo-500/15 dark:!text-indigo-300 dark:ring-indigo-500/30'
-
-function DateChip({ active, onClick, children }: { active: boolean; onClick: () => void; children: ReactNode }) {
-  return (
-    <button type="button" onClick={onClick} aria-pressed={active} className={`${pill} ${active ? pillActive : ''}`}>
-      {children}
-    </button>
   )
 }
 

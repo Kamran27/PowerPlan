@@ -2,9 +2,9 @@ import { useState, type FormEvent } from 'react'
 import type { Habit } from '../db'
 import { addHabit, ALL_DAYS, describeDays, updateHabit, WEEKDAY_SHORT } from '../lib/habits'
 import { useToast } from './Toast'
+import { softField } from '../lib/pillStyles'
 
-const fieldClass =
-  'rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-sm dark:border-slate-700 dark:bg-slate-800'
+const fieldClass = softField.replace('w-full ', '')
 
 const PRESETS: { label: string; days: number[] }[] = [
   { label: 'Täglich', days: ALL_DAYS },
@@ -113,14 +113,14 @@ export default function HabitForm({ habit, onDone }: { habit?: Habit; onDone?: (
         </span>
         <div className="ml-auto flex gap-2">
           {onDone && habit && (
-            <button type="button" onClick={onDone} className="rounded-lg px-3 py-1.5 text-sm text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800">
+            <button type="button" onClick={onDone} className="rounded-xl px-3 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800">
               Abbrechen
             </button>
           )}
           <button
             type="submit"
             disabled={!canSave}
-            className="rounded-lg bg-indigo-600 px-3 py-1.5 text-sm font-semibold text-white hover:bg-indigo-500 disabled:opacity-40"
+            className="rounded-xl bg-indigo-600 px-4 py-2 text-sm font-semibold text-white shadow-sm shadow-indigo-600/25 transition hover:bg-indigo-500 active:scale-95 disabled:opacity-40"
           >
             {habit ? 'Speichern' : 'Hinzufügen'}
           </button>
