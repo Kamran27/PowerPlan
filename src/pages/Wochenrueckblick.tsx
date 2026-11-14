@@ -65,8 +65,33 @@ export default function Wochenrueckblick() {
   // Liegengebliebenes: in der Woche (oder davor) fällig und noch offen
   const leftOver = mine.filter((t) => !t.done && t.dueDate && t.dueDate <= weekEnd).sort((a, b) => a.dueDate!.localeCompare(b.dueDate!))
   // Ohne Datum: auf die neue Woche verteilen
-  const undated = mine.filter((t) => !t.done && !t.dueDate)
+  // In diesem Rückblick verteilte Aufgaben bleiben in der Liste (Tag ändern oder rückgängig machen).
+  // Gespeichert wird das Rückgängig der ERSTEN Verteilung – es stellt „ohne Datum“ wieder her.
+  const [placed, setPlaced] = useState<Record<string, () => Promise<void>>>({})
+  const undated = mine.filter((t) => !t.done && (!t.dueDate || placed[t.id]))
+  const placedCount = undated.filter((t) => placed[t.id] && t.dueDate).length
   const perDay = (d: string) => mine.filter((t) => !t.done && t.dueDate === d).length
+
+  async function placeTask(t: Task, date: string) {
+    if (t.dueDate === date) return unplace(t) // gleicher Tag nochmal = zurücknehmen
+    const undo = await postponeTasks([t], date)
+    if (!placed[t.id]) setPlaced((p) => ({ ...p, [t.id]: undo }))
+  }
+
+  async function unplace(t: Task) {
+    const undo = placed[t.id]
+    if (!undo) return
+    await undo()
+    setPlaced((p) => {
+      const rest = { ...p }
+      delete rest[t.id]
+      return rest
+    })
+  }
+
+  async function unplaceAll() {
+    for (const t of undated) if (placed[t.id]) await unplace(t)
+  }
 
   async function moveTo(tasks: Task[], date: string, label: string) {
     const undo = await postponeTasks(tasks, date)
@@ -188,26 +213,65 @@ export default function Wochenrueckblick() {
 
       {step === 3 && (
         <section className={card}>
-          <h2 className="font-semibold">Aufgaben ohne Datum verteilen ({undated.length})</h2>
-          <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">Tippe auf einen Tag. Die Zahl zeigt, wie viel dort schon geplant ist.</p>
+          <div className="flex flex-wrap items-baseline justify-between gap-2">
+            <h2 className="font-semibold">
+              Aufgaben ohne Datum verteilen{' '}
+              <span className="text-sm font-normal text-slate-500 dark:text-slate-400">
+                {placedCount} von {undated.length} verteilt
+              </span>
+            </h2>
+            {placedCount > 0 && (
+              <button onClick={unplaceAll} className="text-xs font-medium text-indigo-600 hover:underline dark:text-indigo-400">
+                ↩ Alle zurücksetzen
+              </button>
+            )}
+          </div>
+          <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+            Tippe auf einen Tag. Die Zahl zeigt, wie viel dort schon geplant ist. Nochmal auf den gewählten Tag tippen = zurücknehmen.
+          </p>
           {undated.length === 0 && <p className="mt-3 text-sm text-slate-500 dark:text-slate-400">Alles hat schon einen Termin. 👍</p>}
           <ul className="mt-3 grid gap-3">
-            {undated.map((t) => (
-              <li key={t.id}>
-                <p className="text-sm font-medium">{t.title}</p>
-                <div className="mt-1 flex flex-wrap gap-1">
-                  {planDays.map((d) => (
-                    <button
-                      key={d}
-                      onClick={() => moveTo([t], d, formatDayShort(d))}
-                      className="rounded-lg px-2 py-1 text-xs ring-1 ring-slate-200 hover:bg-indigo-50 hover:ring-indigo-300 dark:ring-slate-700 dark:hover:bg-indigo-500/10"
-                    >
-                      {formatDayShort(d).split(',')[0]} <span className="text-slate-400">{perDay(d)}</span>
-                    </button>
-                  ))}
-                </div>
-              </li>
-            ))}
+            {undated.map((t) => {
+              const chosen = placed[t.id] ? t.dueDate : undefined
+              return (
+                <li key={t.id} className={`rounded-xl p-2 -mx-2 transition ${chosen ? 'bg-emerald-50/70 dark:bg-emerald-500/10' : ''}`}>
+                  <div className="flex items-baseline justify-between gap-2">
+                    <p className="min-w-0 text-sm font-medium">
+                      {chosen && <span className="mr-1 text-emerald-600 dark:text-emerald-400">✓</span>}
+                      {t.title}
+                    </p>
+                    {chosen && (
+                      <button
+                        onClick={() => unplace(t)}
+                        className="shrink-0 text-xs font-medium text-slate-500 hover:text-indigo-600 hover:underline dark:text-slate-400 dark:hover:text-indigo-400"
+                      >
+                        ↩ Rückgängig
+                      </button>
+                    )}
+                  </div>
+                  <div className="mt-1 flex flex-wrap gap-1">
+                    {planDays.map((d) => {
+                      const active = chosen === d
+                      return (
+                        <button
+                          key={d}
+                          onClick={() => placeTask(t, d)}
+                          aria-pressed={active}
+                          className={`rounded-lg px-2 py-1 text-xs ring-1 transition ${
+                            active
+                              ? 'bg-indigo-600 font-semibold text-white ring-indigo-600'
+                              : 'ring-slate-200 hover:bg-indigo-50 hover:ring-indigo-300 dark:ring-slate-700 dark:hover:bg-indigo-500/10'
+                          }`}
+                        >
+                          {formatDayShort(d).split(',')[0]}{' '}
+                          <span className={active ? 'text-indigo-200' : 'text-slate-400'}>{perDay(d)}</span>
+                        </button>
+                      )
+                    })}
+                  </div>
+                </li>
+              )
+            })}
           </ul>
           <div className="mt-6 flex justify-end">
             <button onClick={finish} className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-500">
