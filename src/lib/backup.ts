@@ -1,6 +1,7 @@
 import {
   db,
   type DayLog,
+  type Expense,
   type FocusItem,
   type Goal,
   type Habit,
@@ -17,13 +18,15 @@ import {
 } from '../db'
 import { importLegacyData, type LegacyData } from './legacy'
 import { createSpace } from './spaces'
+import type { SpaceKind } from './spaceKinds'
 
 const FORMAT = 'powerplan-backup'
 /**
  * 1 = Aufgaben, Zeitblöcke, Tagesbilanzen · 2 = + Gewohnheiten · 3 = + Ziele und Wochenfokus
  * 4 = Cloud-Version: IDs sind Texte · 5 = + gemeinsame Bereiche, Einkaufslisten, Artikel und Rezepte · 6 = + Essensplan · 7 = + Fokus-Sitzungen, Wochenrückblicke
+ * 8 = + Kosten teilen (Ausgaben), Bereich-Art und Stichtag
  */
-const VERSION = 7
+const VERSION = 8
 
 interface Backup {
   format: typeof FORMAT
@@ -44,6 +47,7 @@ interface Backup {
   meals: Meal[]
   focusSessions: FocusSession[]
   weekReviews: WeekReview[]
+  expenses: Expense[]
 }
 
 /** Alle Daten als JSON-Datei herunterladen. */
@@ -66,6 +70,7 @@ export async function exportBackup() {
     meals: await db.meals.toArray(),
     focusSessions: await db.focusSessions.toArray(),
     weekReviews: await db.weekReviews.toArray(),
+    expenses: await db.expenses.toArray(),
   }
   const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' })
   const url = URL.createObjectURL(blob)
@@ -110,6 +115,7 @@ export async function readBackup(file: File): Promise<Backup> {
     meals: list(b.meals),
     focusSessions: list(b.focusSessions),
     weekReviews: list(b.weekReviews),
+    expenses: list(b.expenses),
   }
 }
 
@@ -129,7 +135,7 @@ function withoutId<T extends { id: string }>(o: T): Omit<T, 'id'> {
 
 /**
  * Übernimmt eine Sicherung in die (Cloud-)Datenbank. Es wird nichts gelöscht:
- * - Version 4–7: Einträge werden mit ihren IDs zurückgeschrieben (gleiche ID = aktualisieren)
+ * - Version 4–8: Einträge werden mit ihren IDs zurückgeschrieben (gleiche ID = aktualisieren)
  * - Version 1–3 (vor der Cloud): Einträge bekommen neue IDs, Verknüpfungen werden umgeschrieben
  *
  * Gemeinsame Bereiche (ab Version 5):
@@ -153,14 +159,14 @@ export async function restoreBackup(b: Backup): Promise<RestoreResult> {
     if (existing) {
       spaceMap.set(s.id, { id: existing.id, realmId: existing.realmId, recreated: false })
     } else {
-      const id = await createSpace(s.title, s.emoji, { withList: false })
+      const id = await createSpace(s.title, s.emoji, { withList: false, kind: s.kind as SpaceKind | undefined, date: s.date })
       const created = await db.spaces.get(id)
       spaceMap.set(s.id, { id, realmId: created!.realmId, recreated: true })
       result.recreatedSpaces.push(s.title)
     }
   }
 
-  const tables = [db.tasks, db.timeBlocks, db.dayLogs, db.habits, db.habitChecks, db.goals, db.weekFocus, db.shoppingLists, db.shoppingItems, db.recipes, db.meals, db.focusSessions, db.weekReviews]
+  const tables = [db.tasks, db.timeBlocks, db.dayLogs, db.habits, db.habitChecks, db.goals, db.weekFocus, db.shoppingLists, db.shoppingItems, db.recipes, db.meals, db.focusSessions, db.weekReviews, db.expenses]
   await db.transaction('rw', tables, async () => {
     // 2) Aufgaben – bei neu angelegten Bereichen mit neuer ID (Zeitblöcke werden umgehängt)
     const taskIdMap = new Map<string, string>()
@@ -227,6 +233,14 @@ export async function restoreBackup(b: Backup): Promise<RestoreResult> {
         const recipeId = m.recipeId ? recipeIdMap.get(m.recipeId) : undefined
         await db.meals.add({ ...withoutId(m), spaceId: target.id, realmId: target.realmId, recipeId } as Meal)
       }
+    }
+
+    // 6) Kosten teilen
+    for (const e of b.expenses) {
+      const target = spaceMap.get(e.spaceId)
+      if (!target) continue
+      if (!target.recreated) await db.expenses.put({ ...e, realmId: target.realmId })
+      else await db.expenses.add({ ...withoutId(e), spaceId: target.id, realmId: target.realmId } as Expense)
     }
   })
   return result

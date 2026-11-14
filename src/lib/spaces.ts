@@ -1,5 +1,7 @@
 import { getTiedRealmId } from 'dexie-cloud-addon'
-import { db, type ShoppingItem, type ShoppingList, type Space, type Task } from '../db'
+import { db, type Expense, type ShoppingItem, type ShoppingList, type Space, type Task } from '../db'
+import { kindInfo, type SpaceKind } from './spaceKinds'
+import { todayISO } from './date'
 
 /*
  * Gemeinsame Bereiche („Haushalt“, „Urlaub 2027“ …) mit Dexie Cloud:
@@ -58,23 +60,82 @@ export function pointsForMe(t: Task, me?: string): boolean {
 
 /* ---------- Bereiche ---------- */
 
-/** Legt einen Bereich samt eigenem Realm und (ohne `withList: false`) einer ersten Einkaufsliste an. */
-export async function createSpace(title: string, emoji?: string, opts: { withList?: boolean } = {}): Promise<string> {
-  return db.transaction('rw', [db.spaces, db.realms, db.shoppingLists], async () => {
+/**
+ * Legt einen Bereich samt eigenem Realm an – mit Art (Vorlage). Startinhalte der Vorlage:
+ * Listen immer, Aufgaben nur mit `starter` (Standard: ja). `withList: false` = ganz ohne Listen.
+ */
+export async function createSpace(
+  title: string,
+  emoji?: string,
+  opts: { withList?: boolean; kind?: SpaceKind; starter?: boolean; date?: string } = {},
+): Promise<string> {
+  const id = await db.transaction('rw', [db.spaces, db.realms], async () => {
     const id = await db.spaces.add({
       title: title.trim(),
       emoji: emoji?.trim() || undefined,
       createdByEmail: myEmail(),
       createdAt: new Date().toISOString(),
+      ...(opts.kind && opts.kind !== 'frei' ? { kind: opts.kind } : {}),
+      ...(opts.date ? { date: opts.date } : {}),
     } as Space)
     const realmId = getTiedRealmId(id)
     await db.realms.put({ realmId, name: title.trim(), represents: 'ein gemeinsamer Bereich in PowerPlan' })
     await db.spaces.update(id, { realmId }) // ab jetzt gehört der Bereich in seinen Realm
-    if (opts.withList !== false) {
-      await db.shoppingLists.add({ spaceId: id, realmId, title: 'Einkauf', createdAt: new Date().toISOString() } as ShoppingList)
-    }
     return id
   })
+  if (opts.withList !== false) {
+    const space = (await db.spaces.get(id))!
+    await applyKind(space, opts.kind ?? 'frei', { tasks: opts.starter !== false, items: opts.starter !== false })
+  }
+  return id
+}
+
+/**
+ * Startinhalte einer Vorlage in einen Bereich legen: fehlende Listen (nach Titel) anlegen,
+ * optional mit Beispiel-Einträgen, und optional die Start-Aufgaben (ohne Doppelte).
+ */
+export async function applyKind(space: Space, kind: SpaceKind, opts: { tasks: boolean; items: boolean }) {
+  const info = kindInfo(kind)
+  const now = new Date().toISOString()
+  await db.transaction('rw', [db.shoppingLists, db.shoppingItems, db.tasks], async () => {
+    const existing = await db.shoppingLists.where('spaceId').equals(space.id).toArray()
+    for (const l of info.lists) {
+      if (existing.some((e) => e.title.toLowerCase() === l.title.toLowerCase())) continue
+      const listId = await db.shoppingLists.add({
+        spaceId: space.id,
+        realmId: space.realmId,
+        title: l.title,
+        createdAt: now,
+        ...(l.plain ? { plain: true } : {}),
+      } as ShoppingList)
+      if (opts.items) {
+        for (const name of l.items) {
+          await db.shoppingItems.add({ listId, spaceId: space.id, realmId: space.realmId, name, done: false, createdAt: now } as ShoppingItem)
+        }
+      }
+    }
+    if (opts.tasks) {
+      const titles = new Set((await db.tasks.where('spaceId').equals(space.id).toArray()).map((t) => t.title.toLowerCase()))
+      for (const t of info.tasks) {
+        if (titles.has(t.title.toLowerCase())) continue
+        await db.tasks.add({
+          title: t.title,
+          priority: 2,
+          done: false,
+          createdAt: now,
+          spaceId: space.id,
+          realmId: space.realmId,
+          // Wiederkehrende brauchen einen ersten Termin
+          ...(t.repeat ? { repeat: t.repeat, dueDate: todayISO() } : {}),
+        } as Task)
+      }
+    }
+  })
+}
+
+/** Art und Stichtag eines Bereichs ändern */
+export async function updateSpaceKind(space: Space, kind: SpaceKind, date?: string) {
+  await db.spaces.update(space.id, { kind: kind === 'frei' ? undefined : kind, date: date || undefined })
 }
 
 export async function renameSpace(space: Space, title: string, emoji?: string) {
@@ -93,7 +154,8 @@ export async function renameSpace(space: Space, title: string, emoji?: string) {
  * sie verschwinden mit dem Realm. Offline bleibt der (dann leere) Realm einfach bestehen – das stört nicht.
  */
 export async function deleteSpace(space: Space) {
-  await db.transaction('rw', [db.spaces, db.tasks, db.shoppingLists, db.shoppingItems, db.recipes, db.meals], async () => {
+  await db.transaction('rw', [db.spaces, db.tasks, db.shoppingLists, db.shoppingItems, db.recipes, db.meals, db.expenses], async () => {
+    await db.expenses.where('spaceId').equals(space.id).delete()
     await db.meals.where('spaceId').equals(space.id).delete()
     await db.recipes.where('spaceId').equals(space.id).delete()
     await db.shoppingItems.where('spaceId').equals(space.id).delete()
@@ -144,8 +206,14 @@ export function nextInRotation(rotation: string[], current?: string): string {
 
 /* ---------- Einkaufslisten ---------- */
 
-export async function addShoppingList(space: Space, title: string) {
-  await db.shoppingLists.add({ spaceId: space.id, realmId: space.realmId, title: title.trim(), createdAt: new Date().toISOString() } as ShoppingList)
+export async function addShoppingList(space: Space, title: string, opts: { plain?: boolean } = {}) {
+  await db.shoppingLists.add({
+    spaceId: space.id,
+    realmId: space.realmId,
+    title: title.trim(),
+    createdAt: new Date().toISOString(),
+    ...(opts.plain ? { plain: true } : {}),
+  } as ShoppingList)
 }
 
 export async function deleteShoppingList(list: ShoppingList) {
@@ -187,4 +255,23 @@ export async function deleteShoppingItem(id: string) {
  */
 export async function clearDoneItems(list: ShoppingList) {
   await db.shoppingItems.where('listId').equals(list.id).filter((i) => i.done && !i.cleared).modify({ cleared: true })
+}
+
+/* ---------- Kosten teilen ---------- */
+
+export async function addExpense(space: Space, e: { title: string; amount: number; paidBy: string; to?: string; date?: string }) {
+  await db.expenses.add({
+    spaceId: space.id,
+    realmId: space.realmId,
+    title: e.title.trim(),
+    amount: e.amount,
+    paidBy: e.paidBy,
+    ...(e.to ? { to: e.to } : {}),
+    date: e.date || todayISO(),
+    createdAt: new Date().toISOString(),
+  } as Expense)
+}
+
+export async function deleteExpense(id: string) {
+  await db.expenses.delete(id)
 }

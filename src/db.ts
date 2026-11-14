@@ -63,6 +63,10 @@ export interface Space {
   realmId: string
   createdByEmail?: string
   createdAt: string
+  /** Vorlage/Art des Bereichs (Haushalt, Reise …). Fehlt = „frei“ wie bisher */
+  kind?: string
+  /** Stichtag mit Countdown (Abreise, Feier …) "JJJJ-MM-TT" */
+  date?: string
 }
 
 /** Eine Einkaufsliste in einem Bereich. */
@@ -71,6 +75,23 @@ export interface ShoppingList {
   spaceId: string
   realmId: string
   title: string
+  createdAt: string
+  /** Einfache Liste (Packliste, Gäste …): ohne Laden-Abteilungen, eigener Reiter */
+  plain?: boolean
+}
+
+/** Eine Ausgabe (oder ein Ausgleich) in einem Bereich – Beträge in Cent. */
+export interface Expense {
+  id: string
+  spaceId: string
+  realmId: string
+  title: string
+  amount: number
+  /** Wer bezahlt hat (E-Mail) */
+  paidBy: string
+  /** Ausgleich: an wen das Geld ging (dann keine Ausgabe) */
+  to?: string
+  date: string
   createdAt: string
 }
 
@@ -226,6 +247,7 @@ export const db = new Dexie('powerplan-cloud', { addons: [dexieCloud] }) as Dexi
   meals: EntityTable<Meal, 'id'>
   focusSessions: EntityTable<FocusSession, 'id'>
   weekReviews: EntityTable<WeekReview, 'id'>
+  expenses: EntityTable<Expense, 'id'>
 }
 
 // „@id“ = Dexie Cloud vergibt eine weltweit eindeutige Text-ID. Danach: Felder, nach denen gesucht wird.
@@ -264,6 +286,11 @@ db.version(4).stores({
 db.version(5).stores({
   focusSessions: '@id, date, taskId',
   weekReviews: '@id, week',
+})
+
+// Version 6: Kosten teilen (pro Bereich)
+db.version(6).stores({
+  expenses: '@id, spaceId, date',
 })
 
 db.cloud.configure({

@@ -21,7 +21,8 @@ const field = 'rounded-lg border border-slate-200 bg-white text-sm dark:border-s
  * Eine Einkaufsliste: Artikel mit Menge hinzufügen (mit Vorschlägen aus früheren Einkäufen),
  * nach Abteilungen in Laden-Reihenfolge sortiert, abhaken, bearbeiten, Erledigtes wegräumen.
  */
-export default function ShoppingListView({ list }: { list: ShoppingList }) {
+export default function ShoppingListView({ list, random }: { list: ShoppingList; random?: boolean }) {
+  const plain = !!list.plain
   const items = useLiveQuery(() => db.shoppingItems.where('listId').equals(list.id).toArray(), [list.id])
   // Vorschläge aus allen Listen des Bereichs (auch aus weggeräumten Artikeln)
   const spaceItems = useLiveQuery(() => db.shoppingItems.where('spaceId').equals(list.spaceId).toArray(), [list.spaceId])
@@ -33,12 +34,16 @@ export default function ShoppingListView({ list }: { list: ShoppingList }) {
   const open = visible.filter((i) => !i.done)
   const done = visible.filter((i) => i.done).sort((a, b) => (b.doneAt ?? '').localeCompare(a.doneAt ?? ''))
   const openNames = new Set(open.map((i) => normalizeName(i.name)))
-  const suggestions = suggest(history, openNames, name, name ? 6 : 8)
+  // Einfache Listen (Packliste, Gäste …): keine Abteilungen, Vorschläge nur aus dieser Liste
+  const suggestions = plain
+    ? suggest(buildHistory((items ?? []).filter((i) => i.cleared)), openNames, name, name ? 6 : 8)
+    : suggest(history, openNames, name, name ? 6 : 8)
+  const [picked, setPicked] = useState<string>()
 
   // Offene Artikel nach Abteilung gruppieren, Abteilungen in Laden-Reihenfolge
   const byCategory = new Map<string, ShoppingItem[]>()
   for (const i of open) {
-    const c = itemCategory(i)
+    const c = plain ? 'alle' : itemCategory(i)
     byCategory.set(c, [...(byCategory.get(c) ?? []), i])
   }
   const groups = [...byCategory.entries()]
@@ -52,7 +57,7 @@ export default function ShoppingListView({ list }: { list: ShoppingList }) {
     const q = qty
     setName('')
     setQty('')
-    await addShoppingItem(list, n, q, categoryFor(n, history))
+    await addShoppingItem(list, n, q, plain ? undefined : categoryFor(n, history))
   }
 
   async function addSuggestion(s: Suggestion) {
@@ -70,8 +75,8 @@ export default function ShoppingListView({ list }: { list: ShoppingList }) {
         <input
           value={name}
           onChange={(e) => setName(e.target.value)}
-          placeholder="Artikel, z. B. Milch"
-          aria-label="Artikel"
+          placeholder={plain ? 'Neuer Eintrag' : 'Artikel, z. B. Milch'}
+          aria-label={plain ? 'Eintrag' : 'Artikel'}
           autoComplete="off"
           className={`${field} min-w-0 flex-1 px-3 py-2`}
         />
@@ -87,7 +92,7 @@ export default function ShoppingListView({ list }: { list: ShoppingList }) {
       {/* Vorschläge: beim Tippen passende, sonst die häufigsten */}
       {suggestions.length > 0 && (
         <div className="mt-2">
-          <p className="mb-1 text-xs text-slate-500 dark:text-slate-400">{name ? 'Schon mal gekauft:' : 'Häufig gekauft – antippen zum Hinzufügen:'}</p>
+          <p className="mb-1 text-xs text-slate-500 dark:text-slate-400">{plain ? 'Schon mal auf der Liste:' : name ? 'Schon mal gekauft:' : 'Häufig gekauft – antippen zum Hinzufügen:'}</p>
           <div className="flex flex-wrap gap-1.5">
             {suggestions.map((s) => (
               <button
@@ -96,7 +101,7 @@ export default function ShoppingListView({ list }: { list: ShoppingList }) {
                 onClick={() => addSuggestion(s)}
                 className="rounded-full bg-emerald-50 px-2.5 py-1 text-sm text-emerald-800 ring-1 ring-emerald-200 hover:bg-emerald-100 dark:bg-emerald-500/10 dark:text-emerald-200 dark:ring-emerald-500/30 dark:hover:bg-emerald-500/20"
               >
-                + {categoryInfo(s.category).emoji} {s.name}
+                + {!plain && categoryInfo(s.category).emoji} {s.name}
                 {(qty.trim() || s.qty) && <span className="ml-1 text-emerald-600/80 dark:text-emerald-300/70">({qty.trim() || s.qty})</span>}
               </button>
             ))}
@@ -111,16 +116,39 @@ export default function ShoppingListView({ list }: { list: ShoppingList }) {
         </div>
       )}
 
+      {/* Zufallswahl („Was machen wir?“) – nur bei Ideen-Listen */}
+      {random && open.length > 1 && (
+        <div className="mt-3 flex flex-wrap items-center gap-2 rounded-xl bg-amber-50 px-3 py-2 text-sm ring-1 ring-amber-200 dark:bg-amber-500/10 dark:ring-amber-500/30">
+          <button
+            type="button"
+            onClick={() => {
+              const others = open.filter((i) => i.id !== picked)
+              setPicked(others[Math.floor(Math.random() * others.length)].id)
+            }}
+            className="rounded-lg bg-amber-500 px-3 py-1 font-semibold text-white hover:bg-amber-400 active:scale-95"
+          >
+            🎲 Was machen wir?
+          </button>
+          {picked && open.some((i) => i.id === picked) && (
+            <span className="font-medium">
+              → {open.find((i) => i.id === picked)!.name} ✨
+            </span>
+          )}
+        </div>
+      )}
+
       {groups.map((g) => {
         const c = categoryInfo(g.id)
         return (
           <section key={g.id} className="mt-3">
-            <h3 className="px-2 text-xs font-semibold tracking-wide text-slate-500 uppercase dark:text-slate-400">
-              <span aria-hidden>{c.emoji}</span> {c.label}
-            </h3>
+            {!plain && (
+              <h3 className="px-2 text-xs font-semibold tracking-wide text-slate-500 uppercase dark:text-slate-400">
+                <span aria-hidden>{c.emoji}</span> {c.label}
+              </h3>
+            )}
             <ul className="mt-0.5 grid gap-0.5">
               {g.items.map((i) => (
-                <ShoppingRow key={i.id} item={i} />
+                <ShoppingRow key={i.id} item={i} plain={plain} highlight={i.id === picked} />
               ))}
             </ul>
           </section>
@@ -130,14 +158,14 @@ export default function ShoppingListView({ list }: { list: ShoppingList }) {
       {done.length > 0 && (
         <>
           <div className="mt-4 mb-1 flex items-center justify-between text-xs text-slate-500 dark:text-slate-400">
-            <span>Im Wagen ({done.length})</span>
+            <span>{plain ? 'Erledigt' : 'Im Wagen'} ({done.length})</span>
             <button onClick={() => clearDoneItems(list)} className="hover:underline">
               Erledigte entfernen
             </button>
           </div>
           <ul className="grid gap-0.5">
             {done.map((i) => (
-              <ShoppingRow key={i.id} item={i} />
+              <ShoppingRow key={i.id} item={i} plain={plain} />
             ))}
           </ul>
         </>
@@ -146,7 +174,7 @@ export default function ShoppingListView({ list }: { list: ShoppingList }) {
   )
 }
 
-function ShoppingRow({ item }: { item: ShoppingItem }) {
+function ShoppingRow({ item, plain, highlight }: { item: ShoppingItem; plain?: boolean; highlight?: boolean }) {
   const [editing, setEditing] = useState(false)
   const [name, setName] = useState(item.name)
   const [qty, setQty] = useState(item.qty ?? '')
@@ -155,7 +183,7 @@ function ShoppingRow({ item }: { item: ShoppingItem }) {
   async function save(e: FormEvent) {
     e.preventDefault()
     if (!name.trim()) return
-    await updateShoppingItem(item.id, { name: name.trim(), qty: qty.trim() || undefined, category })
+    await updateShoppingItem(item.id, { name: name.trim(), qty: qty.trim() || undefined, ...(plain ? {} : { category }) })
     setEditing(false)
   }
 
@@ -165,13 +193,13 @@ function ShoppingRow({ item }: { item: ShoppingItem }) {
         <form onSubmit={save} onKeyDown={(e) => e.key === 'Escape' && setEditing(false)} className="flex flex-wrap gap-2 py-1">
           <input value={qty} onChange={(e) => setQty(e.target.value)} aria-label="Menge" className={`${field} w-20 px-2 py-1`} />
           <input autoFocus value={name} onChange={(e) => setName(e.target.value)} aria-label="Artikel" className={`${field} min-w-0 flex-1 px-2 py-1`} />
-          <select value={category} onChange={(e) => setCategory(e.target.value)} aria-label="Abteilung" className={`${field} px-2 py-1`}>
+          {!plain && <select value={category} onChange={(e) => setCategory(e.target.value)} aria-label="Abteilung" className={`${field} px-2 py-1`}>
             {CATEGORIES.map((c) => (
               <option key={c.id} value={c.id}>
                 {c.emoji} {c.label}
               </option>
             ))}
-          </select>
+          </select>}
           <button className="rounded-lg bg-indigo-600 px-3 text-sm font-semibold text-white">OK</button>
         </form>
       </li>
@@ -179,7 +207,11 @@ function ShoppingRow({ item }: { item: ShoppingItem }) {
   }
 
   return (
-    <li className="group flex items-center gap-3 rounded-xl px-2 py-2 hover:bg-slate-100/70 dark:hover:bg-slate-800/50">
+    <li
+      className={`group flex items-center gap-3 rounded-xl px-2 py-2 transition hover:bg-slate-100/70 dark:hover:bg-slate-800/50 ${
+        highlight ? 'bg-amber-50 ring-2 ring-amber-300 dark:bg-amber-500/10 dark:ring-amber-500/40' : ''
+      }`}
+    >
       <input
         type="checkbox"
         checked={item.done}

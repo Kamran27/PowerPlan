@@ -31,6 +31,8 @@ export default function Suche() {
   const habits = useLiveQuery(() => db.habits.toArray(), [])
   const goals = useLiveQuery(() => db.goals.toArray(), [])
   const spaces = useLiveQuery(() => db.spaces.toArray(), [])
+  const lists = useLiveQuery(() => db.shoppingLists.toArray(), [])
+  const plainIds = new Set((lists ?? []).filter((l) => l.plain).map((l) => l.id))
 
   const r = useMemo(() => {
     const m = matcher(q)
@@ -79,9 +81,9 @@ export default function Suche() {
 
       <div className="mt-6 grid gap-4 sm:grid-cols-2">
         {r.items.length > 0 && (
-          <Group title={`🛒 Einkauf (${r.items.length})`}>
+          <Group title={`🛒 Listen (${r.items.length})`}>
             {r.items.map((i) => (
-              <Row key={i.id} to={`/gemeinsam/${encodeURIComponent(i.spaceId)}?tab=einkauf`} sub={r.spaceName.get(i.spaceId)}>
+              <Row key={i.id} to={`/gemeinsam/${encodeURIComponent(i.spaceId)}?tab=${plainIds.has(i.listId) ? 'listen' : 'einkauf'}`} sub={r.spaceName.get(i.spaceId)}>
                 <span className={i.done ? 'line-through opacity-60' : ''}>
                   {i.qty && <strong className="mr-1">{i.qty}</strong>}
                   {i.name}

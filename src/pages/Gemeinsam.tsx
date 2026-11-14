@@ -6,6 +6,10 @@ import RecentlyDone from '../components/RecentlyDone'
 import { useToast } from '../components/Toast'
 import { db } from '../db'
 import { createSpace, shortName } from '../lib/spaces'
+import KindPicker from '../components/KindPicker'
+import { countdownText, kindInfo, type SpaceKind } from '../lib/spaceKinds'
+import { todayISO } from '../lib/date'
+import { softField } from '../lib/pillStyles'
 import Skeleton from '../components/Skeleton'
 
 const card = 'rounded-2xl bg-white p-4 shadow-sm ring-1 ring-slate-200 dark:bg-slate-900 dark:ring-slate-800'
@@ -20,6 +24,10 @@ export default function Gemeinsam() {
   const pendingInvites = invites.filter((i) => !i.accepted && !i.rejected)
   const [title, setTitle] = useState('')
   const [emoji, setEmoji] = useState('')
+  const [kindId, setKindId] = useState<SpaceKind>('haushalt')
+  const [date, setDate] = useState('')
+  const [starter, setStarter] = useState(true)
+  const kind = kindInfo(kindId)
   const navigate = useNavigate()
   const toast = useToast()
 
@@ -27,9 +35,10 @@ export default function Gemeinsam() {
     e.preventDefault()
     if (!title.trim()) return
     try {
-      const id = await createSpace(title, emoji)
+      const id = await createSpace(title, emoji || kind.emoji, { kind: kindId, starter, date: kind.dateLabel ? date : undefined })
       setTitle('')
       setEmoji('')
+      setDate('')
       navigate(`/gemeinsam/${id}`)
     } catch (err) {
       console.error(err)
@@ -39,7 +48,7 @@ export default function Gemeinsam() {
 
   return (
     <div className="max-w-3xl">
-      <PageHeader title="Gemeinsam" subtitle="Bereiche, die ihr teilt – Aufgaben und Einkaufslisten für alle Mitglieder." cat="pair" />
+      <PageHeader title="Gemeinsam" subtitle="Bereiche, die ihr teilt – Haushalt, Reisen, Budget, Feiern und mehr." cat="pair" />
 
       {/* Einladungen an mich */}
       {pendingInvites.length > 0 && (
@@ -66,30 +75,51 @@ export default function Gemeinsam() {
         </section>
       )}
 
-      {/* Neuer Bereich */}
-      <form onSubmit={create} className={`${card} flex gap-2`}>
-        <input
-          value={emoji}
-          onChange={(e) => setEmoji(e.target.value)}
-          placeholder="🏠"
-          aria-label="Symbol (optional)"
-          maxLength={8}
-          className="w-12 rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-center dark:border-slate-700 dark:bg-slate-800"
-        />
-        <input
-          value={title}
-          onChange={(e) => setTitle(e.target.value)}
-          placeholder="Neuer Bereich, z. B. Haushalt"
-          aria-label="Name des Bereichs"
-          className="min-w-0 flex-1 bg-transparent px-2 outline-none placeholder:text-slate-400"
-        />
-        <button
-          type="submit"
-          disabled={!title.trim()}
-          className="rounded-lg bg-indigo-600 px-3 py-1.5 text-sm font-semibold text-white hover:bg-indigo-500 disabled:opacity-40"
-        >
-          Anlegen
-        </button>
+      {/* Neuer Bereich – mit Vorlage */}
+      <form onSubmit={create} className={`${card} grid gap-3`}>
+        <h2 className="font-semibold">Neuer Bereich</h2>
+        <KindPicker value={kindId} onChange={setKindId} />
+        <div className="flex flex-wrap gap-2">
+          <input
+            value={emoji}
+            onChange={(e) => setEmoji(e.target.value)}
+            placeholder={kind.emoji}
+            aria-label="Symbol (optional)"
+            maxLength={8}
+            className={`${softField} !w-12 text-center`}
+          />
+          <input
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            placeholder={`Name, z. B. ${kind.placeholder}`}
+            aria-label="Name des Bereichs"
+            className={`${softField} min-w-0 flex-[1_1_12rem]`}
+          />
+          {kind.dateLabel && (
+            <label className="flex items-center gap-2 text-sm">
+              <span className="text-slate-500 dark:text-slate-400">{kind.dateLabel}</span>
+              <input type="date" value={date} onChange={(e) => setDate(e.target.value)} aria-label={kind.dateLabel} className={`${softField} !w-auto`} />
+            </label>
+          )}
+        </div>
+        <div className="flex flex-wrap items-center gap-3">
+          {(kind.tasks.length > 0 || kind.lists.some((l) => l.items.length)) && (
+            <label className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-300">
+              <input type="checkbox" checked={starter} onChange={(e) => setStarter(e.target.checked)} className="size-4 accent-indigo-600" />
+              Mit Vorschlägen starten
+              <span className="text-xs text-slate-400">
+                ({[kind.tasks.length && `${kind.tasks.length} Aufgaben`, ...kind.lists.filter((l) => l.items.length).map((l) => l.title)].filter(Boolean).join(', ')})
+              </span>
+            </label>
+          )}
+          <button
+            type="submit"
+            disabled={!title.trim()}
+            className="ml-auto rounded-xl bg-indigo-600 px-4 py-2 text-sm font-semibold text-white shadow-sm shadow-indigo-600/25 hover:bg-indigo-500 active:scale-95 disabled:opacity-40"
+          >
+            Anlegen
+          </button>
+        </div>
       </form>
 
       {/* Bereiche */}
@@ -109,13 +139,19 @@ export default function Gemeinsam() {
               <Link to={`/gemeinsam/${s.id}`} className={`${card} block hover:ring-indigo-300 dark:hover:ring-indigo-500/50`}>
                 <div className="flex items-center gap-2">
                   <span className="text-2xl" aria-hidden>
-                    {s.emoji || '👥'}
+                    {s.emoji || kindInfo(s.kind).emoji}
                   </span>
                   <span className="font-semibold">{s.title}</span>
+                  {s.kind && <span className="ml-auto rounded-full bg-slate-100 px-2 py-0.5 text-xs text-slate-500 dark:bg-slate-800 dark:text-slate-400">{kindInfo(s.kind).label}</span>}
                 </div>
                 <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">
-                  {tasks} offene Aufgaben · {items} Artikel auf Einkaufslisten
+                  {tasks} offene Aufgaben · {items} offene Einträge
                 </p>
+                {s.date && kindInfo(s.kind).dateLabel && (
+                  <p className="mt-1 text-xs font-medium text-indigo-600 dark:text-indigo-400">
+                    {kindInfo(s.kind).dateLabel}: {countdownText(s.date, todayISO())}
+                  </p>
+                )}
                 <p className="mt-1 truncate text-xs text-slate-400">
                   {m.length === 0 ? 'Noch niemand eingeladen' : `${m.length + 1} Mitglieder`}
                 </p>
