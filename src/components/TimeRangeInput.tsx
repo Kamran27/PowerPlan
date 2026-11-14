@@ -31,6 +31,9 @@ export default function TimeRangeInput({ start, end, onChange, className }: Prop
         title="Beginn – mit Uhrzeit landet die Aufgabe im Tagesplan"
         className={className}
       />
+      {/* Ende erst zeigen, wenn ein Beginn gewählt ist */}
+      {start && (
+        <>
       <span className="text-slate-400" aria-hidden>
         –
       </span>
@@ -43,6 +46,8 @@ export default function TimeRangeInput({ start, end, onChange, className }: Prop
         title={start ? 'Ende' : 'Erst einen Beginn wählen'}
         className={className}
       />
+        </>
+      )}
     </span>
   )
 }

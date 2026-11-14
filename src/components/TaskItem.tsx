@@ -143,7 +143,7 @@ export default function TaskItem({ task, scheduledAt, goals = [], spaces = [], c
       )}
       <div
         {...swipe.handlers}
-        className={`relative flex items-start gap-3 px-3 py-2.5 ${swipe.swiping ? 'bg-white dark:bg-slate-950' : 'transition-transform duration-200 hover:bg-slate-100/70 dark:hover:bg-slate-800/50'}`}
+        className={`relative flex items-start gap-3 px-3 py-2.5 ${swipe.swiping ? 'bg-white dark:bg-slate-900' : 'transition-transform duration-200 hover:bg-slate-50 dark:hover:bg-slate-800/50'}`}
         style={{ transform: swipe.dx ? `translateX(${swipe.dx}px)` : undefined, touchAction: 'pan-y' }}
       >
       <input
