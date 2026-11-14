@@ -65,32 +65,45 @@ export default function Wochenrueckblick() {
   // Liegengebliebenes: in der Woche (oder davor) fällig und noch offen
   const leftOver = mine.filter((t) => !t.done && t.dueDate && t.dueDate <= weekEnd).sort((a, b) => a.dueDate!.localeCompare(b.dueDate!))
   // Ohne Datum: auf die neue Woche verteilen
-  // In diesem Rückblick verteilte Aufgaben bleiben in der Liste (Tag ändern oder rückgängig machen).
-  // Gespeichert wird das Rückgängig der ERSTEN Verteilung – es stellt „ohne Datum“ wieder her.
-  const [placed, setPlaced] = useState<Record<string, () => Promise<void>>>({})
-  const undated = mine.filter((t) => !t.done && (!t.dueDate || placed[t.id]))
-  const placedCount = undated.filter((t) => placed[t.id] && t.dueDate).length
+  // In diesem Rückblick verteilte Aufgaben bleiben in der Liste (Tag ändern oder rückgängig machen) –
+  // auch nach Neuladen oder Schließen der App: gemerkt pro Planungswoche auf diesem Gerät.
+  const placedKey = `powerplan-verteilt-${planWeek}`
+  const [placed, setPlacedState] = useState<string[]>(() => {
+    try {
+      return JSON.parse(localStorage.getItem(placedKey) ?? '[]') as string[]
+    } catch {
+      return []
+    }
+  })
+  function setPlaced(next: string[]) {
+    setPlacedState(next)
+    try {
+      localStorage.setItem(placedKey, JSON.stringify(next))
+    } catch {
+      /* privater Modus: dann nur bis zum Schließen */
+    }
+  }
+  const isPlaced = (t: Task) => placed.includes(t.id)
+  const undated = mine.filter((t) => !t.done && (!t.dueDate || isPlaced(t)))
+  const placedCount = undated.filter((t) => isPlaced(t) && t.dueDate).length
   const perDay = (d: string) => mine.filter((t) => !t.done && t.dueDate === d).length
 
   async function placeTask(t: Task, date: string) {
-    if (t.dueDate === date) return unplace(t) // gleicher Tag nochmal = zurücknehmen
-    const undo = await postponeTasks([t], date)
-    if (!placed[t.id]) setPlaced((p) => ({ ...p, [t.id]: undo }))
+    if (isPlaced(t) && t.dueDate === date) return unplace(t) // gleicher Tag nochmal = zurücknehmen
+    await postponeTasks([t], date)
+    if (!isPlaced(t)) setPlaced([...placed, t.id])
   }
 
+  /** Zurück auf „ohne Datum“ (verteilte Aufgaben hatten vorher keins) */
   async function unplace(t: Task) {
-    const undo = placed[t.id]
-    if (!undo) return
-    await undo()
-    setPlaced((p) => {
-      const rest = { ...p }
-      delete rest[t.id]
-      return rest
-    })
+    await db.tasks.update(t.id, { dueDate: undefined })
+    setPlaced(placed.filter((id) => id !== t.id))
   }
 
   async function unplaceAll() {
-    for (const t of undated) if (placed[t.id]) await unplace(t)
+    const ids = undated.filter(isPlaced).map((t) => t.id)
+    for (const id of ids) await db.tasks.update(id, { dueDate: undefined })
+    setPlaced([])
   }
 
   async function moveTo(tasks: Task[], date: string, label: string) {
@@ -232,7 +245,7 @@ export default function Wochenrueckblick() {
           {undated.length === 0 && <p className="mt-3 text-sm text-slate-500 dark:text-slate-400">Alles hat schon einen Termin. 👍</p>}
           <ul className="mt-3 grid gap-3">
             {undated.map((t) => {
-              const chosen = placed[t.id] ? t.dueDate : undefined
+              const chosen = isPlaced(t) ? t.dueDate : undefined
               return (
                 <li key={t.id} className={`rounded-xl p-2 -mx-2 transition ${chosen ? 'bg-emerald-50/70 dark:bg-emerald-500/10' : ''}`}>
                   <div className="flex items-baseline justify-between gap-2">
