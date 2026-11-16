@@ -12,6 +12,7 @@ import {
 } from '../lib/recipes'
 import { categoryInfo, normalizeName } from '../lib/shopping'
 import { useToast } from './Toast'
+import { confirmDialog } from '../lib/confirm'
 
 const field = 'rounded-lg border border-slate-200 bg-white text-sm dark:border-slate-700 dark:bg-slate-800'
 
@@ -135,7 +136,7 @@ function RecipeDetailBody({ recipe, list, onEdit, onDeleted, openOnList }: Detai
           </button>
           <button
             onClick={async () => {
-              if (!window.confirm(`Rezept „${recipe.title}“ löschen?`)) return
+              if (!(await confirmDialog(`Rezept „${recipe.title}“ löschen?`))) return
               await deleteRecipe(recipe.id)
               onDeleted()
             }}

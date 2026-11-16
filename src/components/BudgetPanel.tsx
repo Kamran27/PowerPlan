@@ -9,6 +9,7 @@ import { softField } from '../lib/pillStyles'
 import { addBudgetItem, deleteBudgetItem, updateBudgetItem } from '../lib/spaces'
 import { SittingCat } from './Cats'
 import { useToast } from './Toast'
+import { confirmDialog } from '../lib/confirm'
 
 const card = 'rounded-2xl bg-white p-5 shadow-sm ring-1 ring-slate-200 dark:bg-slate-900 dark:ring-slate-800'
 const SUGGESTIONS = ['Miete', 'Strom', 'Internet', 'Handy', 'Versicherungen', 'Streaming', 'Fitnessstudio', 'Auto', 'Rundfunkbeitrag']
@@ -282,7 +283,7 @@ function GoalRow({ goal, today }: { goal: BudgetItem; today: string }) {
           <button
             type="button"
             onClick={async () => {
-              if (!window.confirm(`Sparziel „${goal.title}“ löschen?`)) return
+              if (!(await confirmDialog(`Sparziel „${goal.title}“ löschen?`))) return
               await deleteBudgetItem(goal.id)
               toast('Sparziel gelöscht', { label: 'Rückgängig', onClick: () => db.budgetItems.put(goal).then(() => {}) })
             }}

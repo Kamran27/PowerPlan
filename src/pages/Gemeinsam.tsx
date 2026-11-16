@@ -2,6 +2,8 @@ import { useLiveQuery, useObservable } from 'dexie-react-hooks'
 import { useState, type FormEvent } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import PageHeader from '../components/PageHeader'
+import BottomSheet from '../components/BottomSheet'
+import { Plus } from 'lucide-react'
 import RecentlyDone from '../components/RecentlyDone'
 import { useToast } from '../components/Toast'
 import { db } from '../db'
@@ -27,6 +29,7 @@ export default function Gemeinsam() {
   const [kindId, setKindId] = useState<SpaceKind>('haushalt')
   const [date, setDate] = useState('')
   const [starter, setStarter] = useState(true)
+  const [creating, setCreating] = useState(false)
   const kind = kindInfo(kindId)
   const navigate = useNavigate()
   const toast = useToast()
@@ -39,6 +42,7 @@ export default function Gemeinsam() {
       setTitle('')
       setEmoji('')
       setDate('')
+      setCreating(false)
       navigate(`/gemeinsam/${id}`)
     } catch (err) {
       console.error(err)
@@ -75,9 +79,55 @@ export default function Gemeinsam() {
         </section>
       )}
 
-      {/* Neuer Bereich – mit Vorlage */}
-      <form onSubmit={create} className={`${card} grid gap-3`}>
-        <h2 className="font-semibold">Neuer Bereich</h2>
+      {/* Bereiche */}
+      {!spaces && <Skeleton rows={2} className="mt-4" />}
+      {spaces && spaces.length === 0 && (
+        <p className="mt-4 rounded-2xl border border-dashed border-slate-300 p-8 text-center text-sm text-slate-500 dark:border-slate-700 dark:text-slate-400">
+          Noch keine gemeinsamen Bereiche. Leg unten einen an und lade deine Partnerin per E-Mail ein.
+        </p>
+      )}
+      <ul className="mt-4 grid gap-3 sm:grid-cols-2">
+        {(spaces ?? []).map((s) => {
+          const m = (members ?? []).filter((x) => x.realmId === s.realmId)
+          const tasks = (openTasks ?? []).filter((t) => t.spaceId === s.id).length
+          const items = (openItems ?? []).filter((i) => i.spaceId === s.id).length
+          return (
+            <li key={s.id}>
+              <Link to={`/gemeinsam/${s.id}`} className={`${card} block hover:ring-indigo-300 dark:hover:ring-indigo-500/50`}>
+                <div className="flex items-center gap-2">
+                  <span className="text-2xl" aria-hidden>
+                    {s.emoji || kindInfo(s.kind).emoji}
+                  </span>
+                  <span className="font-semibold">{s.title}</span>
+                  {s.kind && <span className="ml-auto rounded-full bg-slate-100 px-2 py-0.5 text-xs text-slate-500 dark:bg-slate-800 dark:text-slate-400">{kindInfo(s.kind).label}</span>}
+                </div>
+                <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">
+                  {tasks} offene Aufgaben · {items} offene Einträge
+                </p>
+                {s.date && kindInfo(s.kind).dateLabel && (
+                  <p className="mt-1 text-xs font-medium text-indigo-600 dark:text-indigo-400">
+                    {kindInfo(s.kind).dateLabel}: {countdownText(s.date, todayISO())}
+                  </p>
+                )}
+                <p className="mt-1 truncate text-xs text-slate-400">
+                  {m.length === 0 ? 'Noch niemand eingeladen' : `${m.length + 1} Mitglieder`}
+                </p>
+              </Link>
+            </li>
+          )
+        })}
+      </ul>
+
+      <button
+        onClick={() => setCreating(true)}
+        className="mt-3 flex w-full items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-slate-300 py-3 text-sm font-medium text-slate-500 hover:border-indigo-400 hover:bg-indigo-50/50 hover:text-indigo-600 dark:border-slate-700 dark:text-slate-400 dark:hover:border-indigo-500/60 dark:hover:bg-indigo-500/10 dark:hover:text-indigo-300"
+      >
+        <Plus aria-hidden className="size-4" /> Neuer Bereich
+      </button>
+
+      {/* Neuer Bereich: nur über den Knopf – als Fenster, damit man nicht versehentlich hineinklickt */}
+      <BottomSheet open={creating} onClose={() => setCreating(false)} title="Neuer Bereich">
+      <form onSubmit={create} className="grid gap-3">
         <KindPicker value={kindId} onChange={setKindId} />
         <div className="flex flex-wrap gap-2">
           <input
@@ -122,44 +172,7 @@ export default function Gemeinsam() {
         </div>
       </form>
 
-      {/* Bereiche */}
-      {!spaces && <Skeleton rows={2} className="mt-4" />}
-      {spaces && spaces.length === 0 && (
-        <p className="mt-4 rounded-2xl border border-dashed border-slate-300 p-8 text-center text-sm text-slate-500 dark:border-slate-700 dark:text-slate-400">
-          Noch keine gemeinsamen Bereiche. Leg oben einen an und lade deine Partnerin per E-Mail ein.
-        </p>
-      )}
-      <ul className="mt-4 grid gap-3 sm:grid-cols-2">
-        {(spaces ?? []).map((s) => {
-          const m = (members ?? []).filter((x) => x.realmId === s.realmId)
-          const tasks = (openTasks ?? []).filter((t) => t.spaceId === s.id).length
-          const items = (openItems ?? []).filter((i) => i.spaceId === s.id).length
-          return (
-            <li key={s.id}>
-              <Link to={`/gemeinsam/${s.id}`} className={`${card} block hover:ring-indigo-300 dark:hover:ring-indigo-500/50`}>
-                <div className="flex items-center gap-2">
-                  <span className="text-2xl" aria-hidden>
-                    {s.emoji || kindInfo(s.kind).emoji}
-                  </span>
-                  <span className="font-semibold">{s.title}</span>
-                  {s.kind && <span className="ml-auto rounded-full bg-slate-100 px-2 py-0.5 text-xs text-slate-500 dark:bg-slate-800 dark:text-slate-400">{kindInfo(s.kind).label}</span>}
-                </div>
-                <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">
-                  {tasks} offene Aufgaben · {items} offene Einträge
-                </p>
-                {s.date && kindInfo(s.kind).dateLabel && (
-                  <p className="mt-1 text-xs font-medium text-indigo-600 dark:text-indigo-400">
-                    {kindInfo(s.kind).dateLabel}: {countdownText(s.date, todayISO())}
-                  </p>
-                )}
-                <p className="mt-1 truncate text-xs text-slate-400">
-                  {m.length === 0 ? 'Noch niemand eingeladen' : `${m.length + 1} Mitglieder`}
-                </p>
-              </Link>
-            </li>
-          )
-        })}
-      </ul>
+      </BottomSheet>
 
       <RecentlyDone />
     </div>

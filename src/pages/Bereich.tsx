@@ -32,6 +32,7 @@ import KindPicker from '../components/KindPicker'
 import { formatDayShort, todayISO } from '../lib/date'
 import { softField } from '../lib/pillStyles'
 import Skeleton from '../components/Skeleton'
+import { confirmDialog } from '../lib/confirm'
 
 const card = 'rounded-2xl bg-white p-5 shadow-sm ring-1 ring-slate-200 dark:bg-slate-900 dark:ring-slate-800'
 type Tab = SpaceTab
@@ -166,7 +167,7 @@ export default function Bereich() {
               {shopLists.length > 1 && (
                 <button
                   onClick={async () => {
-                    if (!window.confirm(`Liste „${activeList.title}“ mit allen Artikeln löschen?`)) return
+                    if (!(await confirmDialog(`Liste „${activeList.title}“ mit allen Artikeln löschen?`))) return
                     await deleteShoppingList(activeList)
                   }}
                   className="mt-4 text-xs text-rose-600 hover:underline dark:text-rose-400"
@@ -204,7 +205,7 @@ export default function Bereich() {
               <ShoppingListView list={activePlain} random={kind.random} />
               <button
                 onClick={async () => {
-                  if (!window.confirm(`Liste „${activePlain.title}“ mit allen Einträgen löschen?`)) return
+                  if (!(await confirmDialog(`Liste „${activePlain.title}“ mit allen Einträgen löschen?`))) return
                   await deleteShoppingList(activePlain)
                 }}
                 className="mt-4 text-xs text-rose-600 hover:underline dark:text-rose-400"
@@ -256,7 +257,7 @@ export default function Bereich() {
           {isOwner && (
             <button
               onClick={async () => {
-                if (!window.confirm(`Bereich „${space.title}“ mit allen Aufgaben und Listen für ALLE Mitglieder löschen?`)) return
+                if (!(await confirmDialog(`Bereich „${space.title}“ mit allen Aufgaben und Listen für ALLE Mitglieder löschen?`))) return
                 await deleteSpace(space)
                 toast('Bereich gelöscht')
                 navigate('/gemeinsam')
@@ -294,6 +295,22 @@ function SpaceHeader({ space, people, me, isOwner }: { space: Space; people: str
     setEditing(true)
   }
 
+  async function remove() {
+    const ok = await confirmDialog(
+      `„${space.title}“ mit allen Aufgaben, Listen, Kosten und Budget wird für alle Mitglieder gelöscht. Das kann nicht rückgängig gemacht werden.`,
+      { title: 'Bereich löschen?', confirmLabel: 'Endgültig löschen' },
+    )
+    if (!ok) return
+    try {
+      await deleteSpace(space)
+      toast(`🗑️ Bereich „${space.title}“ gelöscht`)
+      navigate('/gemeinsam')
+    } catch (err) {
+      console.error(err)
+      toast('Löschen hat nicht geklappt – bitte noch einmal versuchen.')
+    }
+  }
+
   async function save(e: FormEvent) {
     e.preventDefault()
     if (!title.trim()) return
@@ -327,21 +344,7 @@ function SpaceHeader({ space, people, me, isOwner }: { space: Space; people: str
             Vorschläge der Vorlage hinzufügen ({newKind.tasks.length} Aufgaben{newKind.lists.some((l) => l.items.length) ? ', Listen-Einträge' : ''})
           </label>
         )}
-        <div className="flex flex-wrap items-center justify-end gap-2 border-t border-slate-100 pt-3 dark:border-slate-800">
-          {isOwner && (
-            <button
-              type="button"
-              onClick={async () => {
-                if (!window.confirm(`Bereich „${space.title}“ mit allen Aufgaben, Listen und Kosten für ALLE Mitglieder löschen? Das kann nicht rückgängig gemacht werden.`)) return
-                await deleteSpace(space)
-                toast(`Bereich „${space.title}“ gelöscht`)
-                navigate('/gemeinsam')
-              }}
-              className="mr-auto flex items-center gap-1.5 rounded-xl px-3 py-2 text-sm font-medium text-rose-600 hover:bg-rose-50 dark:text-rose-400 dark:hover:bg-rose-500/10"
-            >
-              <Trash2 aria-hidden className="size-4" /> Bereich löschen
-            </button>
-          )}
+        <div className="flex flex-wrap items-center justify-end gap-2">
           <button type="button" onClick={() => setEditing(false)} className="rounded-xl px-3 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800">
             Abbrechen
           </button>
@@ -360,11 +363,21 @@ function SpaceHeader({ space, people, me, isOwner }: { space: Space; people: str
         <button
           onClick={open}
           aria-label="Bearbeiten"
-          title="Name, Art, Datum ändern oder Bereich löschen"
+          title="Name, Art und Datum ändern"
           className="ml-1 flex items-center gap-1 rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-600 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700"
         >
           <Settings2 aria-hidden className="size-3.5" /> Bearbeiten
         </button>
+        {isOwner && (
+          <button
+            onClick={remove}
+            aria-label="Bereich löschen"
+            title="Bereich mit allem darin löschen"
+            className="flex items-center gap-1 rounded-full bg-rose-50 px-2.5 py-1 text-xs font-medium text-rose-600 hover:bg-rose-100 dark:bg-rose-500/10 dark:text-rose-400 dark:hover:bg-rose-500/20"
+          >
+            <Trash2 aria-hidden className="size-3.5" /> Löschen
+          </button>
+        )}
       </h1>
       <div className="mt-2 flex flex-wrap items-center gap-1.5 text-sm text-slate-500 dark:text-slate-400">
         {kind.id !== 'frei' && (
