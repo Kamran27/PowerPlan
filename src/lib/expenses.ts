@@ -71,3 +71,8 @@ export function parseEuro(text: string): number | undefined {
 export function formatEuro(cents: number): string {
   return (cents / 100).toLocaleString('de-DE', { style: 'currency', currency: 'EUR' })
 }
+
+/** Cent → Text fürs Eingabefeld: 85000 → „850,00“ */
+export function centsToInput(cents: number): string {
+  return (cents / 100).toFixed(2).replace('.', ',')
+}

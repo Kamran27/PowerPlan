@@ -273,6 +273,10 @@ export async function addExpense(space: Space, e: { title: string; amount: numbe
   } as Expense)
 }
 
+export async function updateExpense(id: string, changes: Partial<Pick<Expense, 'title' | 'amount' | 'paidBy' | 'to' | 'date'>>) {
+  await db.expenses.update(id, changes)
+}
+
 export async function deleteExpense(id: string) {
   await db.expenses.delete(id)
 }

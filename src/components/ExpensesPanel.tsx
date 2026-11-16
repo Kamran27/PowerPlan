@@ -1,11 +1,12 @@
 import { useLiveQuery } from 'dexie-react-hooks'
-import { ArrowRight, Plus, X } from 'lucide-react'
+import { ArrowRight, Pencil, Plus, X } from 'lucide-react'
 import { useMemo, useState, type FormEvent } from 'react'
-import { db, type Space } from '../db'
+import { db, type Expense, type Space } from '../db'
 import { formatDayShort, todayISO } from '../lib/date'
-import { balances, formatEuro, parseEuro, settle } from '../lib/expenses'
+import { balances, centsToInput, formatEuro, parseEuro, settle } from '../lib/expenses'
 import { softField } from '../lib/pillStyles'
-import { addExpense, deleteExpense, shortName } from '../lib/spaces'
+import { addExpense, deleteExpense, shortName, updateExpense } from '../lib/spaces'
+import { EditButtons } from './BudgetPanel'
 import Avatar from './Avatar'
 import { SittingCat } from './Cats'
 import { useToast } from './Toast'
@@ -21,6 +22,7 @@ export default function ExpensesPanel({ space, people, me }: { space: Space; peo
   const [title, setTitle] = useState('')
   const [amount, setAmount] = useState('')
   const [paidBy, setPaidBy] = useState(me ?? people[0] ?? '')
+  const [editId, setEditId] = useState<string>()
   const toast = useToast()
   const name = (p: string) => (p === me ? 'Ich' : shortName(p))
 
@@ -139,14 +141,26 @@ export default function ExpensesPanel({ space, people, me }: { space: Space; peo
         )}
         <ul className="mt-2 divide-y divide-slate-100 dark:divide-slate-800">
           {sorted.map((e) => (
+            editId === e.id ? (
+              <li key={e.id} className="py-2">
+                <ExpenseEditor expense={e} people={people} me={me} onClose={() => setEditId(undefined)} />
+              </li>
+            ) : (
             <li key={e.id} className="group flex items-center gap-3 py-2 text-sm">
               <Avatar email={e.paidBy} me={me} size="sm" />
-              <div className="min-w-0 flex-1">
+              <button onClick={() => setEditId(e.id)} className="min-w-0 flex-1 text-left" title="Bearbeiten">
                 <p className="truncate font-medium">{e.to ? `💸 Ausgleich an ${name(e.to)}` : e.title}</p>
                 <p className="text-xs text-slate-500 dark:text-slate-400">
                   {formatDayShort(e.date)} · {name(e.paidBy)} hat bezahlt
                 </p>
-              </div>
+              </button>
+              <button
+                onClick={() => setEditId(e.id)}
+                aria-label="Eintrag bearbeiten"
+                className="rounded-md p-1 text-slate-400 opacity-0 group-hover:opacity-100 hover:text-indigo-600 focus:opacity-100 max-md:opacity-100"
+              >
+                <Pencil className="size-3.5" />
+              </button>
               <span className={`font-semibold tabular-nums ${e.to ? 'text-emerald-600 dark:text-emerald-400' : ''}`}>{formatEuro(e.amount)}</span>
               <button
                 onClick={async () => {
@@ -159,9 +173,71 @@ export default function ExpensesPanel({ space, people, me }: { space: Space; peo
                 <X className="size-4" />
               </button>
             </li>
+            )
           ))}
         </ul>
       </section>
     </div>
+  )
+}
+
+/** Eintrag bearbeiten: Wofür, Betrag, wer bezahlt hat, Datum (bei Ausgleich: an wen) */
+function ExpenseEditor({ expense, people, me, onClose }: { expense: Expense; people: string[]; me?: string; onClose: () => void }) {
+  const [title, setTitle] = useState(expense.title)
+  const [amount, setAmount] = useState(centsToInput(expense.amount))
+  const [paidBy, setPaidBy] = useState(expense.paidBy)
+  const [to, setTo] = useState(expense.to ?? '')
+  const [date, setDate] = useState(expense.date)
+  const cents = parseEuro(amount)
+  const everyone = Array.from(new Set([...people, expense.paidBy, ...(expense.to ? [expense.to] : [])]))
+  const name = (p: string) => (p === me ? 'Ich' : shortName(p))
+  const transfer = !!expense.to
+  const valid = !!cents && !!date && (transfer ? !!to && to !== paidBy : !!title.trim())
+
+  async function save(e: FormEvent) {
+    e.preventDefault()
+    if (!valid) return
+    await updateExpense(expense.id, { amount: cents, paidBy, date, ...(transfer ? { to } : { title: title.trim() }) })
+    onClose()
+  }
+
+  return (
+    <form onSubmit={save} onKeyDown={(e) => e.key === 'Escape' && onClose()} className="grid gap-2 rounded-xl bg-indigo-50/50 p-2 ring-1 ring-indigo-200 dark:bg-indigo-500/10 dark:ring-indigo-500/30">
+      <div className="flex flex-wrap gap-2">
+        {!transfer && <input autoFocus value={title} onChange={(e) => setTitle(e.target.value)} aria-label="Wofür" className={`${softField} min-w-0 flex-[2_1_9rem]`} />}
+        <input
+          autoFocus={transfer}
+          value={amount}
+          onChange={(e) => setAmount(e.target.value)}
+          inputMode="decimal"
+          aria-label="Betrag in Euro"
+          className={`${softField} flex-[1_1_5rem] text-right tabular-nums ${amount && !cents ? '!ring-rose-400' : ''}`}
+        />
+        <input type="date" value={date} onChange={(e) => setDate(e.target.value)} aria-label="Datum" className={`${softField} !w-auto`} />
+      </div>
+      <div className="flex flex-wrap items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
+        {transfer ? 'Von' : 'Bezahlt von'}
+        <select value={paidBy} onChange={(e) => setPaidBy(e.target.value)} aria-label={transfer ? 'Von' : 'Bezahlt von'} className={`${softField} !w-auto`}>
+          {everyone.map((p) => (
+            <option key={p} value={p}>
+              {name(p)}
+            </option>
+          ))}
+        </select>
+        {transfer && (
+          <>
+            an
+            <select value={to} onChange={(e) => setTo(e.target.value)} aria-label="An" className={`${softField} !w-auto`}>
+              {everyone.map((p) => (
+                <option key={p} value={p}>
+                  {name(p)}
+                </option>
+              ))}
+            </select>
+          </>
+        )}
+      </div>
+      <EditButtons onClose={onClose} disabled={!valid} />
+    </form>
   )
 }

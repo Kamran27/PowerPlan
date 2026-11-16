@@ -1,10 +1,10 @@
 import { useLiveQuery } from 'dexie-react-hooks'
-import { CalendarClock, PiggyBank, Plus, X } from 'lucide-react'
+import { CalendarClock, Pencil, PiggyBank, Plus, X } from 'lucide-react'
 import { useState, type FormEvent } from 'react'
 import { db, type BudgetItem, type Space } from '../db'
 import { fixTotals, goalPct, INTERVALS, monthlyToReach, nextDue, perMonth, type BudgetInterval } from '../lib/budget'
 import { formatDayShort, todayISO } from '../lib/date'
-import { formatEuro, parseEuro } from '../lib/expenses'
+import { centsToInput, formatEuro, parseEuro } from '../lib/expenses'
 import { softField } from '../lib/pillStyles'
 import { addBudgetItem, deleteBudgetItem, updateBudgetItem } from '../lib/spaces'
 import { SittingCat } from './Cats'
@@ -65,6 +65,7 @@ function FixCosts({ space, fixes, today }: { space: Space; fixes: BudgetItem[]; 
   const [amount, setAmount] = useState('')
   const [interval, setInterval] = useState<BudgetInterval>('monthly')
   const [day, setDay] = useState('')
+  const [editId, setEditId] = useState<string>()
   const toast = useToast()
   const cents = parseEuro(amount)
   const dayNum = Number(day)
@@ -90,14 +91,26 @@ function FixCosts({ space, fixes, today }: { space: Space; fixes: BudgetItem[]; 
       {fixes.length > 0 && (
         <ul className="mt-3 divide-y divide-slate-100 dark:divide-slate-800">
           {fixes.map((f) => (
+            editId === f.id ? (
+              <li key={f.id} className="py-2">
+                <FixEditor item={f} onClose={() => setEditId(undefined)} />
+              </li>
+            ) : (
             <li key={f.id} className="group flex items-center gap-3 py-2 text-sm">
-              <div className="min-w-0 flex-1">
+              <button onClick={() => setEditId(f.id)} className="min-w-0 flex-1 text-left" title="Bearbeiten">
                 <p className="truncate font-medium">{f.title}</p>
                 <p className="text-xs text-slate-500 dark:text-slate-400">
                   {formatEuro(f.amount)} {INTERVALS.find((i) => i.value === (f.interval ?? 'monthly'))!.label}
                   {f.day ? ` · nächstes Mal ${formatDayShort(nextDue(f.day, today))}` : ''}
                 </p>
-              </div>
+              </button>
+              <button
+                onClick={() => setEditId(f.id)}
+                aria-label={`${f.title} bearbeiten`}
+                className="rounded-md p-1 text-slate-400 opacity-0 group-hover:opacity-100 hover:text-indigo-600 focus:opacity-100 max-md:opacity-100"
+              >
+                <Pencil className="size-3.5" />
+              </button>
               <span className="font-semibold tabular-nums">
                 {formatEuro(perMonth(f))}
                 <span className="text-xs font-normal text-slate-400"> /Mon.</span>
@@ -113,6 +126,7 @@ function FixCosts({ space, fixes, today }: { space: Space; fixes: BudgetItem[]; 
                 <X className="size-4" />
               </button>
             </li>
+            )
           ))}
         </ul>
       )}
@@ -167,6 +181,67 @@ function FixCosts({ space, fixes, today }: { space: Space; fixes: BudgetItem[]; 
         )}
       </form>
     </section>
+  )
+}
+
+/** Fixkosten bearbeiten: Name, Betrag, wie oft, Tag der Fälligkeit */
+function FixEditor({ item, onClose }: { item: BudgetItem; onClose: () => void }) {
+  const [title, setTitle] = useState(item.title)
+  const [amount, setAmount] = useState(centsToInput(item.amount))
+  const [interval, setInterval] = useState<BudgetInterval>(item.interval ?? 'monthly')
+  const [day, setDay] = useState(item.day ? String(item.day) : '')
+  const cents = parseEuro(amount)
+  const dayNum = Number(day)
+
+  async function save(e: FormEvent) {
+    e.preventDefault()
+    if (!title.trim() || !cents) return
+    await updateBudgetItem(item.id, { title: title.trim(), amount: cents, interval, day: dayNum >= 1 && dayNum <= 31 ? dayNum : undefined })
+    onClose()
+  }
+
+  return (
+    <form onSubmit={save} onKeyDown={(e) => e.key === 'Escape' && onClose()} className="grid gap-2 rounded-xl bg-indigo-50/50 p-2 ring-1 ring-indigo-200 dark:bg-indigo-500/10 dark:ring-indigo-500/30">
+      <div className="flex flex-wrap gap-2">
+        <input autoFocus value={title} onChange={(e) => setTitle(e.target.value)} aria-label="Name" className={`${softField} min-w-0 flex-[2_1_9rem]`} />
+        <input
+          value={amount}
+          onChange={(e) => setAmount(e.target.value)}
+          inputMode="decimal"
+          aria-label="Betrag in Euro"
+          className={`${softField} flex-[1_1_5rem] text-right tabular-nums ${amount && !cents ? '!ring-rose-400' : ''}`}
+        />
+        <select value={interval} onChange={(e) => setInterval(e.target.value as BudgetInterval)} aria-label="Wie oft" className={`${softField} !w-auto`}>
+          {INTERVALS.map((i) => (
+            <option key={i.value} value={i.value}>
+              {i.label}
+            </option>
+          ))}
+        </select>
+        <input
+          value={day}
+          onChange={(e) => setDay(e.target.value.replace(/\D/g, '').slice(0, 2))}
+          placeholder="am … (Tag)"
+          inputMode="numeric"
+          aria-label="Fällig am Tag des Monats (optional)"
+          className={`${softField} !w-28`}
+        />
+      </div>
+      <EditButtons onClose={onClose} disabled={!title.trim() || !cents} />
+    </form>
+  )
+}
+
+export function EditButtons({ onClose, disabled }: { onClose: () => void; disabled: boolean }) {
+  return (
+    <div className="flex justify-end gap-2">
+      <button type="button" onClick={onClose} className="rounded-xl px-3 py-1.5 text-sm font-medium text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800">
+        Abbrechen
+      </button>
+      <button type="submit" disabled={disabled} className="rounded-xl bg-indigo-600 px-3 py-1.5 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 disabled:opacity-40">
+        Speichern
+      </button>
+    </div>
   )
 }
 
