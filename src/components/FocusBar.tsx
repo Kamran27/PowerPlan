@@ -85,7 +85,7 @@ export default function FocusBar() {
         <button onClick={() => change(focus.minutes + 5)} disabled={focus.minutes + 5 > FOCUS_MAX} aria-label="5 Minuten länger" className={btn}>
           +5
         </button>
-        <button onClick={stopFocus} aria-label="Fokus abbrechen" className={btn}>
+        <button onClick={() => stopFocus()} aria-label="Fokus abbrechen" className={btn}>
           ✕
         </button>
       </div>

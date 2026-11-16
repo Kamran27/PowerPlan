@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { balances, formatEuro, parseEuro, settle } from './expenses'
 import { countdownText, kindInfo, SPACE_KINDS } from './spaceKinds'
+import { focusRange } from './focusRange'
 
 const A = 'a@x.de'
 const B = 'b@x.de'
@@ -58,5 +59,23 @@ describe('Bereich-Vorlagen', () => {
     expect(countdownText('2026-11-15', '2026-11-14')).toBe('morgen')
     expect(countdownText('2026-12-04', '2026-11-14')).toBe('noch 20 Tage')
     expect(countdownText('2026-11-10', '2026-11-14')).toBe('vor 4 Tagen')
+  })
+})
+
+describe('Fokus verlängert den Block im Tagesplan', () => {
+  const h = (hh: number, mm = 0) => hh * 60 + mm
+  it('Fokus im geplanten Block, aber länger → Ende wächst mit', () => {
+    expect(focusRange({ start: h(18, 30), end: h(19, 30) }, h(19, 10), h(19, 55))).toEqual({ start: h(18, 30), end: h(19, 55) })
+  })
+  it('Fokus kürzer als geplant → Block bleibt', () => {
+    expect(focusRange({ start: h(18, 30), end: h(19, 30) }, h(18, 30), h(18, 55))).toEqual({ start: h(18, 30), end: h(19, 30) })
+  })
+  it('Fokus zu anderer Zeit → Block wandert mit, Dauer bleibt mindestens', () => {
+    expect(focusRange({ start: h(18, 30), end: h(19, 30) }, h(10, 2), h(10, 27))).toEqual({ start: h(10), end: h(11) })
+    expect(focusRange({ start: h(9), end: h(9, 30) }, h(14, 3), h(15, 33))).toEqual({ start: h(14), end: h(15, 35) })
+  })
+  it('ohne Block → genau die Fokuszeit, nie über 23:59', () => {
+    expect(focusRange(undefined, h(14, 3), h(14, 28))).toEqual({ start: h(14), end: h(14, 30) })
+    expect(focusRange(undefined, h(23, 40), h(24, 30))).toEqual({ start: h(23, 40), end: h(23, 59) })
   })
 })

@@ -7,8 +7,10 @@ import { ToastProvider } from './components/Toast'
 import GameProvider from './components/GameProvider'
 import { watchSystemTheme } from './lib/theme'
 import { registerSW } from 'virtual:pwa-register'
+import { installCatPetting } from './lib/petCats'
 
 watchSystemTheme()
+installCatPetting()
 
 // Neue Version zuverlässig übernehmen: beim Zurückkehren zur App und alle 30 Min. nachsehen.
 // Ist eine da, lädt die App sich selbst neu (registerType „autoUpdate“).

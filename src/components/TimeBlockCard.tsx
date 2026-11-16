@@ -3,6 +3,7 @@ import type { Task, TimeBlock } from '../db'
 import { clamp, DAY_START, fromMinutes, MAX_END, PX_PER_MIN, SNAP, snap, toMinutes } from '../lib/time'
 import { updateBlock } from '../lib/timeblocks'
 import { useToggleTask } from './useToggleTask'
+import { useFocus } from '../lib/focus'
 
 interface Props {
   block: TimeBlock
@@ -24,6 +25,7 @@ interface DragState {
 export default function TimeBlockCard({ block, task, lane, lanes, onOpen }: Props) {
   const [preview, setPreview] = useState<{ start: number; end: number } | null>(null)
   const toggle = useToggleTask()
+  const focus = useFocus()
   const drag = useRef<DragState | null>(null)
 
   // Sobald die gespeicherte Zeit ankommt, Vorschau verwerfen (kein Zurückspringen).
@@ -69,7 +71,11 @@ export default function TimeBlockCard({ block, task, lane, lanes, onOpen }: Prop
     if (preview) await updateBlock(block.id, { start: fromMinutes(preview.start), end: fromMinutes(preview.end) })
   }
 
-  const color = block.taskId
+  // Läuft gerade der Fokus-Timer für diesen Block? → bernsteinfarben mit ⏱️ (der Block wächst mit)
+  const focusing = !!focus?.block && focus.block.id === block.id
+  const color = focusing
+    ? 'bg-amber-50 border-amber-500 text-amber-950 dark:bg-amber-500/15 dark:text-amber-100'
+    : block.taskId
     ? 'bg-indigo-50 border-indigo-500 text-indigo-950 dark:bg-indigo-500/15 dark:text-indigo-100'
     : 'bg-emerald-50 border-emerald-500 text-emerald-950 dark:bg-emerald-500/15 dark:text-emerald-100'
 
@@ -87,7 +93,7 @@ export default function TimeBlockCard({ block, task, lane, lanes, onOpen }: Prop
         setPreview(null)
       }}
       className={`absolute touch-none cursor-grab overflow-hidden rounded-lg border-l-4 px-2 text-sm select-none active:cursor-grabbing ${color} ${
-        preview ? 'z-10 shadow-lg ring-2 ring-indigo-400' : 'shadow-sm'
+        preview ? 'z-10 shadow-lg ring-2 ring-indigo-400' : focusing ? 'shadow-md ring-1 ring-amber-300 dark:ring-amber-500/40' : 'shadow-sm'
       } ${done ? 'opacity-60' : ''}`}
       style={{
         top: (start - DAY_START) * PX_PER_MIN + 1,
@@ -108,7 +114,10 @@ export default function TimeBlockCard({ block, task, lane, lanes, onOpen }: Prop
           />
         )}
         <div className="min-w-0 flex-1">
-          <div className={`truncate font-medium ${done ? 'line-through' : ''}`}>{title}</div>
+          <div className={`truncate font-medium ${done ? 'line-through' : ''}`}>
+            {focusing && <span aria-label="Fokus läuft">⏱️ </span>}
+            {title}
+          </div>
           {!compact && (
             <div className="text-xs opacity-70">
               {fromMinutes(start)}–{fromMinutes(end)}

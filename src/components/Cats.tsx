@@ -1,6 +1,7 @@
 /*
  * Katzen – minimal und elegant: feine Linien in der aktuellen Textfarbe (currentColor),
- * damit sie hell/dunkel automatisch passen. Rein dekorativ (aria-hidden).
+ * damit sie hell/dunkel automatisch passen. Für Screenreader dekorativ (aria-hidden).
+ * Jede Katze (data-cat) reagiert aufs Antippen – siehe lib/petCats.ts.
  */
 
 const line = { fill: 'none', stroke: 'currentColor', strokeWidth: 1.6, strokeLinecap: 'round', strokeLinejoin: 'round' } as const
@@ -8,7 +9,7 @@ const line = { fill: 'none', stroke: 'currentColor', strokeWidth: 1.6, strokeLin
 /** Katze, die über eine Kante schaut (Kopf, Ohren, zwei Pfoten). Blinzelt ab und zu. */
 export function PeekingCat({ className = '' }: { className?: string }) {
   return (
-    <svg viewBox="0 0 48 26" aria-hidden className={className}>
+    <svg viewBox="0 0 48 26" aria-hidden data-cat="peeking" className={`cat-pet ${className}`}>
       {/* Kopf mit Ohren */}
       <path {...line} d="M9.5 25 L10 13 L12 4 L18.5 9.5 Q24 8 29.5 9.5 L36 4 L38 13 L38.5 25" />
       {/* Augen (blinzeln) */}
@@ -29,7 +30,7 @@ export function PeekingCat({ className = '' }: { className?: string }) {
 /** Eingerollte, schlafende Katze – für leere Listen („Nichts zu tun – Zeit für ein Nickerchen“). */
 export function SleepingCat({ className = '' }: { className?: string }) {
   return (
-    <svg viewBox="0 0 72 40" aria-hidden className={className}>
+    <svg viewBox="0 0 72 40" aria-hidden data-cat="sleeping" className={`cat-pet ${className}`}>
       {/* Körper, eingerollt */}
       <path {...line} d="M22 21.5 C30 13 50 13 58 22 C62.5 27 61 35 52 35.5 L20 35.5" />
       {/* Kopf, auf den Pfoten liegend */}
@@ -62,7 +63,7 @@ export function PawPrint({ className = '' }: { className?: string }) {
 /** Sitzende Katze von vorn – der Schwanz wedelt sanft. */
 export function SittingCat({ className = '' }: { className?: string }) {
   return (
-    <svg viewBox="0 0 44 52" aria-hidden className={className}>
+    <svg viewBox="0 0 44 52" aria-hidden data-cat="sitting" className={`cat-pet ${className}`}>
       {/* Schwanz (bewegt sich) */}
       <path {...line} className="cat-tail" d="M28.5 47.5 C37 47.5 40.5 40 37.5 33.5 C36 30.5 32.5 31 33.2 34" />
       {/* Körper */}
@@ -83,7 +84,7 @@ export function SittingCat({ className = '' }: { className?: string }) {
 /** Nur ein Katzenschwanz, der unter einer Karte heraushängt und pendelt – die Katze versteckt sich. */
 export function HangingTail({ className = '' }: { className?: string }) {
   return (
-    <svg viewBox="0 0 18 42" aria-hidden className={className}>
+    <svg viewBox="0 0 18 42" aria-hidden data-cat="tail" className={`cat-pet ${className}`}>
       <path {...line} strokeWidth={2.2} className="cat-tail-hang" d="M9 0 C9 9 4.5 15 6 23 C7.6 31.5 15 32 14.2 26.4 C13.8 23.8 11 24.6 11.6 26.6" />
     </svg>
   )
@@ -92,7 +93,7 @@ export function HangingTail({ className = '' }: { className?: string }) {
 /** Laufende Katze im Profil – die Beine bewegen sich abwechselnd. */
 export function WalkingCat({ className = '' }: { className?: string }) {
   return (
-    <svg viewBox="0 0 60 34" aria-hidden className={className}>
+    <svg viewBox="0 0 60 34" aria-hidden data-cat="walking" className={`cat-pet ${className}`}>
       {/* Schwanz nach oben */}
       <path {...line} className="cat-tail" d="M14.5 14.5 C8 13.5 5 8 8.2 3" />
       {/* Rücken, Hinterteil, Bauch */}
@@ -115,7 +116,7 @@ export function WalkingCat({ className = '' }: { className?: string }) {
 /** „Brot-Katze“: liegt gemütlich mit eingezogenen Pfoten, Schwanzspitze zuckt. */
 export function LoafCat({ className = '' }: { className?: string }) {
   return (
-    <svg viewBox="0 0 46 32" aria-hidden className={className}>
+    <svg viewBox="0 0 46 32" aria-hidden data-cat="loaf" className={`cat-pet ${className}`}>
       {/* Körper */}
       <path {...line} d="M7 30.5 C4.8 23 8.5 16.5 15 15.2 M29.5 15.2 C36.5 16.5 40.6 23 38.6 30.5 L7 30.5" />
       {/* Kopf mit Ohren */}

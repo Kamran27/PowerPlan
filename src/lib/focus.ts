@@ -1,6 +1,8 @@
 import { useSyncExternalStore } from 'react'
-import { db, type FocusSession, type Task } from '../db'
+import { db, type FocusSession, type Task, type TimeBlock } from '../db'
 import { localDateOf } from './date'
+import { focusRange, minutesOfDay } from './focusRange'
+import { fromMinutes, toMinutes } from './time'
 
 /*
  * Fokus-Timer („Pomodoro“): konzentriert X Minuten an einer Aufgabe arbeiten.
@@ -14,6 +16,11 @@ export interface RunningFocus {
   /** Startzeit in ms */
   startedAt: number
   minutes: number
+  /**
+   * Zeitblock der Aufgabe im Tagesplan, der mit dem Fokus mitwächst.
+   * `start`/`end` = ursprünglich geplante Zeit (fehlt bei `created`: Block entstand erst durch den Fokus).
+   */
+  block?: { id: string; date: string; start?: string; end?: string; created: boolean }
 }
 
 const KEY = 'powerplan-focus'
@@ -82,7 +89,58 @@ export function setDefaultMinutes(m: number) {
 }
 
 export function startFocus(task: Pick<Task, 'id' | 'title'>, minutes = defaultMinutes()) {
-  write({ taskId: task.id, title: task.title, startedAt: Date.now(), minutes: clampMinutes(minutes) })
+  const f: RunningFocus = { taskId: task.id, title: task.title, startedAt: Date.now(), minutes: clampMinutes(minutes) }
+  write(f)
+  void attachBlock(f)
+}
+
+/* ---------- Fokus ↔ Tagesplan: die geplante Dauer wächst mit ---------- */
+
+/**
+ * Beim Start: Block der Aufgabe für heute suchen (sonst neu anlegen) und so erweitern,
+ * dass er die ganze Fokuszeit abdeckt – im Kalender sieht man die echte Dauer.
+ */
+async function attachBlock(f: RunningFocus) {
+  if (!f.taskId) return
+  try {
+    const date = localDateOf(new Date(f.startedAt).toISOString())
+    const existing = await db.timeBlocks.where('taskId').equals(f.taskId).filter((b) => b.date === date).first()
+    const r = focusRange(existing && { start: toMinutes(existing.start), end: toMinutes(existing.end) }, focusStartMin(f), focusEndMin(f))
+    let block: RunningFocus['block']
+    if (existing) {
+      await db.timeBlocks.update(existing.id, { start: fromMinutes(r.start), end: fromMinutes(r.end) })
+      block = { id: existing.id, date, start: existing.start, end: existing.end, created: false }
+    } else {
+      const id = await db.timeBlocks.add({ date, start: fromMinutes(r.start), end: fromMinutes(r.end), title: f.title, taskId: f.taskId } as TimeBlock)
+      block = { id, date, created: true }
+    }
+    // Timer könnte inzwischen beendet/geändert sein → nur die Block-Info ergänzen
+    const now = read()
+    if (now?.startedAt === f.startedAt) write({ ...now, block })
+  } catch {
+    /* Tagesplan nicht erreichbar – der Timer läuft trotzdem */
+  }
+}
+
+function focusStartMin(f: RunningFocus) {
+  return minutesOfDay(f.startedAt)
+}
+
+function focusEndMin(f: RunningFocus, endMs = f.startedAt + f.minutes * 60_000) {
+  // Über Mitternacht hinaus zählt bis Tagesende
+  return minutesOfDay(f.startedAt) + Math.round((endMs - f.startedAt) / 60_000)
+}
+
+async function resizeBlock(f: RunningFocus, endMs?: number) {
+  const b = f.block
+  if (!b) return
+  const orig = b.start && b.end ? { start: toMinutes(b.start), end: toMinutes(b.end) } : undefined
+  const r = focusRange(orig, focusStartMin(f), focusEndMin(f, endMs))
+  try {
+    await db.timeBlocks.update(b.id, { start: fromMinutes(r.start), end: fromMinutes(r.end) })
+  } catch {
+    /* egal */
+  }
 }
 
 /**
@@ -93,12 +151,24 @@ export function setFocusMinutes(minutes: number, now = Date.now()) {
   const f = read()
   if (!f) return
   const elapsedMin = Math.ceil((now - f.startedAt) / 60_000)
-  write({ ...f, minutes: clampMinutes(Math.max(minutes, elapsedMin + 1)) })
+  const next = { ...f, minutes: clampMinutes(Math.max(minutes, elapsedMin + 1)) }
+  write(next)
+  void resizeBlock(next)
 }
 
-/** Abbrechen – ohne Punkte. */
-export function stopFocus() {
+/**
+ * Abbrechen – ohne Punkte. Der Block im Tagesplan zeigt danach die tatsächlich gearbeitete Zeit
+ * (nie kürzer als geplant); ein nur für den Fokus angelegter Block verschwindet bei < 2 Minuten wieder.
+ */
+export function stopFocus(now = Date.now()) {
+  const f = read()
   write(null)
+  if (!f?.block) return
+  if (f.block.created && now - f.startedAt < 2 * 60_000) {
+    void db.timeBlocks.delete(f.block.id).catch(() => {})
+    return
+  }
+  void resizeBlock(f, now)
 }
 
 export function remainingMs(f: RunningFocus, now = Date.now()): number {
