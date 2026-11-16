@@ -6,7 +6,7 @@ import type { Repeat } from './repeat'
  */
 
 export type SpaceKind = 'haushalt' | 'reise' | 'budget' | 'event' | 'projekt' | 'haustier' | 'familie' | 'ideen' | 'frei'
-export type SpaceTab = 'aufgaben' | 'einkauf' | 'listen' | 'essen' | 'kosten' | 'mitglieder'
+export type SpaceTab = 'aufgaben' | 'einkauf' | 'listen' | 'essen' | 'kosten' | 'budget' | 'mitglieder'
 
 export interface StarterList {
   title: string
@@ -84,9 +84,9 @@ export const SPACE_KINDS: KindInfo[] = [
     id: 'budget',
     label: 'Budget',
     emoji: '💶',
-    desc: 'Ausgaben teilen, Fixkosten im Blick',
+    desc: 'Fixkosten, Sparziele, Ausgaben teilen',
     placeholder: 'Budget',
-    tabs: ['kosten', 'aufgaben', 'mitglieder'],
+    tabs: ['budget', 'kosten', 'aufgaben', 'mitglieder'],
     lists: [],
     tasks: [
       { title: 'Kontoauszüge durchsehen', repeat: 'monthly' },
@@ -192,6 +192,7 @@ export const TAB_LABELS: Record<SpaceTab, string> = {
   listen: '📋 Listen',
   essen: '🍽️ Essen',
   kosten: '💶 Kosten',
+  budget: '📊 Fixkosten & Sparen',
   mitglieder: '👥 Mitglieder',
 }
 

@@ -1,5 +1,6 @@
 import {
   db,
+  type BudgetItem,
   type DayLog,
   type Expense,
   type FocusItem,
@@ -24,9 +25,9 @@ const FORMAT = 'powerplan-backup'
 /**
  * 1 = Aufgaben, Zeitblöcke, Tagesbilanzen · 2 = + Gewohnheiten · 3 = + Ziele und Wochenfokus
  * 4 = Cloud-Version: IDs sind Texte · 5 = + gemeinsame Bereiche, Einkaufslisten, Artikel und Rezepte · 6 = + Essensplan · 7 = + Fokus-Sitzungen, Wochenrückblicke
- * 8 = + Kosten teilen (Ausgaben), Bereich-Art und Stichtag
+ * 8 = + Kosten teilen (Ausgaben), Bereich-Art und Stichtag · 9 = + Budget (Fixkosten, Sparziele)
  */
-const VERSION = 8
+const VERSION = 9
 
 interface Backup {
   format: typeof FORMAT
@@ -48,6 +49,7 @@ interface Backup {
   focusSessions: FocusSession[]
   weekReviews: WeekReview[]
   expenses: Expense[]
+  budgetItems: BudgetItem[]
 }
 
 /** Alle Daten als JSON-Datei herunterladen. */
@@ -71,6 +73,7 @@ export async function exportBackup() {
     focusSessions: await db.focusSessions.toArray(),
     weekReviews: await db.weekReviews.toArray(),
     expenses: await db.expenses.toArray(),
+    budgetItems: await db.budgetItems.toArray(),
   }
   const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' })
   const url = URL.createObjectURL(blob)
@@ -116,6 +119,7 @@ export async function readBackup(file: File): Promise<Backup> {
     focusSessions: list(b.focusSessions),
     weekReviews: list(b.weekReviews),
     expenses: list(b.expenses),
+    budgetItems: list(b.budgetItems),
   }
 }
 
@@ -135,7 +139,7 @@ function withoutId<T extends { id: string }>(o: T): Omit<T, 'id'> {
 
 /**
  * Übernimmt eine Sicherung in die (Cloud-)Datenbank. Es wird nichts gelöscht:
- * - Version 4–8: Einträge werden mit ihren IDs zurückgeschrieben (gleiche ID = aktualisieren)
+ * - Version 4–9: Einträge werden mit ihren IDs zurückgeschrieben (gleiche ID = aktualisieren)
  * - Version 1–3 (vor der Cloud): Einträge bekommen neue IDs, Verknüpfungen werden umgeschrieben
  *
  * Gemeinsame Bereiche (ab Version 5):
@@ -166,7 +170,7 @@ export async function restoreBackup(b: Backup): Promise<RestoreResult> {
     }
   }
 
-  const tables = [db.tasks, db.timeBlocks, db.dayLogs, db.habits, db.habitChecks, db.goals, db.weekFocus, db.shoppingLists, db.shoppingItems, db.recipes, db.meals, db.focusSessions, db.weekReviews, db.expenses]
+  const tables = [db.tasks, db.timeBlocks, db.dayLogs, db.habits, db.habitChecks, db.goals, db.weekFocus, db.shoppingLists, db.shoppingItems, db.recipes, db.meals, db.focusSessions, db.weekReviews, db.expenses, db.budgetItems]
   await db.transaction('rw', tables, async () => {
     // 2) Aufgaben – bei neu angelegten Bereichen mit neuer ID (Zeitblöcke werden umgehängt)
     const taskIdMap = new Map<string, string>()
@@ -241,6 +245,14 @@ export async function restoreBackup(b: Backup): Promise<RestoreResult> {
       if (!target) continue
       if (!target.recreated) await db.expenses.put({ ...e, realmId: target.realmId })
       else await db.expenses.add({ ...withoutId(e), spaceId: target.id, realmId: target.realmId } as Expense)
+    }
+
+    // 7) Budget: Fixkosten und Sparziele
+    for (const x of b.budgetItems) {
+      const target = spaceMap.get(x.spaceId)
+      if (!target) continue
+      if (!target.recreated) await db.budgetItems.put({ ...x, realmId: target.realmId })
+      else await db.budgetItems.add({ ...withoutId(x), spaceId: target.id, realmId: target.realmId } as BudgetItem)
     }
   })
   return result

@@ -95,6 +95,26 @@ export interface Expense {
   createdAt: string
 }
 
+/** Budget-Bereich: Fixkosten (`fix`) oder Sparziel (`goal`) – Beträge in Cent. */
+export interface BudgetItem {
+  id: string
+  spaceId: string
+  realmId: string
+  kind: 'fix' | 'goal'
+  title: string
+  /** fix: Betrag pro Intervall · goal: Zielbetrag */
+  amount: number
+  /** fix: monthly | quarterly | yearly */
+  interval?: 'monthly' | 'quarterly' | 'yearly'
+  /** fix: fällig am X. des Monats */
+  day?: number
+  /** goal: schon gespart */
+  saved?: number
+  /** goal: erreichen bis "JJJJ-MM-TT" */
+  by?: string
+  createdAt: string
+}
+
 /** Ein Artikel auf einer Einkaufsliste. */
 export interface ShoppingItem {
   id: string
@@ -248,6 +268,7 @@ export const db = new Dexie('powerplan-cloud', { addons: [dexieCloud] }) as Dexi
   focusSessions: EntityTable<FocusSession, 'id'>
   weekReviews: EntityTable<WeekReview, 'id'>
   expenses: EntityTable<Expense, 'id'>
+  budgetItems: EntityTable<BudgetItem, 'id'>
 }
 
 // „@id“ = Dexie Cloud vergibt eine weltweit eindeutige Text-ID. Danach: Felder, nach denen gesucht wird.
@@ -291,6 +312,11 @@ db.version(5).stores({
 // Version 6: Kosten teilen (pro Bereich)
 db.version(6).stores({
   expenses: '@id, spaceId, date',
+})
+
+// Version 7: Budget – Fixkosten und Sparziele (pro Bereich)
+db.version(7).stores({
+  budgetItems: '@id, spaceId',
 })
 
 db.cloud.configure({

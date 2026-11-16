@@ -1,5 +1,5 @@
 import { getTiedRealmId } from 'dexie-cloud-addon'
-import { db, type Expense, type ShoppingItem, type ShoppingList, type Space, type Task } from '../db'
+import { db, type BudgetItem, type Expense, type ShoppingItem, type ShoppingList, type Space, type Task } from '../db'
 import { kindInfo, type SpaceKind } from './spaceKinds'
 import { todayISO } from './date'
 
@@ -154,7 +154,8 @@ export async function renameSpace(space: Space, title: string, emoji?: string) {
  * sie verschwinden mit dem Realm. Offline bleibt der (dann leere) Realm einfach bestehen – das stört nicht.
  */
 export async function deleteSpace(space: Space) {
-  await db.transaction('rw', [db.spaces, db.tasks, db.shoppingLists, db.shoppingItems, db.recipes, db.meals, db.expenses], async () => {
+  await db.transaction('rw', [db.spaces, db.tasks, db.shoppingLists, db.shoppingItems, db.recipes, db.meals, db.expenses, db.budgetItems], async () => {
+    await db.budgetItems.where('spaceId').equals(space.id).delete()
     await db.expenses.where('spaceId').equals(space.id).delete()
     await db.meals.where('spaceId').equals(space.id).delete()
     await db.recipes.where('spaceId').equals(space.id).delete()
@@ -274,4 +275,18 @@ export async function addExpense(space: Space, e: { title: string; amount: numbe
 
 export async function deleteExpense(id: string) {
   await db.expenses.delete(id)
+}
+
+/* ---------- Budget: Fixkosten und Sparziele ---------- */
+
+export async function addBudgetItem(space: Space, item: Omit<BudgetItem, 'id' | 'spaceId' | 'realmId' | 'createdAt'>) {
+  await db.budgetItems.add({ ...item, title: item.title.trim(), spaceId: space.id, realmId: space.realmId, createdAt: new Date().toISOString() } as BudgetItem)
+}
+
+export async function updateBudgetItem(id: string, changes: Partial<Omit<BudgetItem, 'id' | 'spaceId' | 'realmId'>>) {
+  await db.budgetItems.update(id, changes)
+}
+
+export async function deleteBudgetItem(id: string) {
+  await db.budgetItems.delete(id)
 }

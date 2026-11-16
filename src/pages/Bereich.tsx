@@ -1,8 +1,10 @@
 import { useLiveQuery } from 'dexie-react-hooks'
 import { useEffect, useState, type FormEvent } from 'react'
+import { Settings2, Trash2 } from 'lucide-react'
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import MealPlanView from '../components/MealPlanView'
 import ExpensesPanel from '../components/ExpensesPanel'
+import BudgetPanel from '../components/BudgetPanel'
 import Avatar from '../components/Avatar'
 import { Cat } from '../components/Cats'
 import RecipesPanel from '../components/RecipesPanel'
@@ -42,6 +44,11 @@ export default function Bereich() {
   const tasks = useLiveQuery(() => db.tasks.where('spaceId').equals(spaceId).toArray(), [spaceId])
   const lists = useLiveQuery(() => db.shoppingLists.where('spaceId').equals(spaceId).sortBy('createdAt'), [spaceId])
   const expenseCount = useLiveQuery(() => db.expenses.where('spaceId').equals(spaceId).count(), [spaceId]) ?? 0
+  // Listen mit (nicht weggeräumten) Einträgen – leere Einkaufslisten blenden keinen extra Reiter ein
+  const filledLists = useLiveQuery(
+    async () => new Set((await db.shoppingItems.where('spaceId').equals(spaceId).filter((i) => !i.cleared).toArray()).map((i) => i.listId)),
+    [spaceId],
+  )
   const me = useMyEmail()
   const [params] = useSearchParams()
   const initialTab = params.get('tab')
@@ -81,7 +88,7 @@ export default function Bereich() {
   const kind = kindInfo(space.kind)
   // Reiter der Vorlage; vorhandene Einkaufslisten und Ausgaben bleiben immer erreichbar (z. B. nach Wechsel der Art)
   const tabs: Tab[] = [...kind.tabs]
-  if (!tabs.includes('einkauf') && shopLists.length) tabs.splice(tabs.indexOf('mitglieder'), 0, 'einkauf')
+  if (!tabs.includes('einkauf') && shopLists.some((l) => filledLists?.has(l.id))) tabs.splice(tabs.indexOf('mitglieder'), 0, 'einkauf')
   if (!tabs.includes('kosten') && expenseCount) tabs.splice(tabs.indexOf('mitglieder'), 0, 'kosten')
   const tab: Tab = chosenTab && tabs.includes(chosenTab) ? chosenTab : tabs[0]
 
@@ -90,7 +97,7 @@ export default function Bereich() {
       <Link to="/gemeinsam" className="text-sm text-slate-500 hover:underline dark:text-slate-400">
         ← Alle Bereiche
       </Link>
-      <SpaceHeader space={space} people={people} me={me} />
+      <SpaceHeader space={space} people={people} me={me} isOwner={isOwner} />
 
       {/* Reiter */}
       <div role="tablist" className="mt-4 mb-4 flex flex-wrap gap-1">
@@ -212,6 +219,7 @@ export default function Bereich() {
       )}
 
       {tab === 'kosten' && <ExpensesPanel space={space} people={people} me={me} />}
+      {tab === 'budget' && <BudgetPanel space={space} people={people} />}
 
       {tab === 'mitglieder' && (
         <section className={card}>
@@ -253,9 +261,9 @@ export default function Bereich() {
                 toast('Bereich gelöscht')
                 navigate('/gemeinsam')
               }}
-              className="mt-6 text-xs text-rose-600 hover:underline dark:text-rose-400"
+              className="mt-6 flex items-center gap-1.5 rounded-xl px-3 py-2 text-sm font-medium text-rose-600 ring-1 ring-rose-200 hover:bg-rose-50 dark:text-rose-400 dark:ring-rose-500/30 dark:hover:bg-rose-500/10"
             >
-              Bereich löschen
+              <Trash2 aria-hidden className="size-4" /> Bereich löschen
             </button>
           )}
         </section>
@@ -264,13 +272,15 @@ export default function Bereich() {
   )
 }
 
-function SpaceHeader({ space, people, me }: { space: Space; people: string[]; me?: string }) {
+function SpaceHeader({ space, people, me, isOwner }: { space: Space; people: string[]; me?: string; isOwner: boolean }) {
   const [editing, setEditing] = useState(false)
   const [title, setTitle] = useState(space.title)
   const [emoji, setEmoji] = useState(space.emoji ?? '')
   const [kindId, setKindId] = useState<SpaceKind>(kindInfo(space.kind).id)
   const [date, setDate] = useState(space.date ?? '')
   const [starter, setStarter] = useState(false)
+  const navigate = useNavigate()
+  const toast = useToast()
   const kind = kindInfo(space.kind)
   const newKind = kindInfo(kindId)
   const kindChanged = newKind.id !== kind.id
@@ -317,7 +327,21 @@ function SpaceHeader({ space, people, me }: { space: Space; people: string[]; me
             Vorschläge der Vorlage hinzufügen ({newKind.tasks.length} Aufgaben{newKind.lists.some((l) => l.items.length) ? ', Listen-Einträge' : ''})
           </label>
         )}
-        <div className="flex justify-end gap-2">
+        <div className="flex flex-wrap items-center justify-end gap-2 border-t border-slate-100 pt-3 dark:border-slate-800">
+          {isOwner && (
+            <button
+              type="button"
+              onClick={async () => {
+                if (!window.confirm(`Bereich „${space.title}“ mit allen Aufgaben, Listen und Kosten für ALLE Mitglieder löschen? Das kann nicht rückgängig gemacht werden.`)) return
+                await deleteSpace(space)
+                toast(`Bereich „${space.title}“ gelöscht`)
+                navigate('/gemeinsam')
+              }}
+              className="mr-auto flex items-center gap-1.5 rounded-xl px-3 py-2 text-sm font-medium text-rose-600 hover:bg-rose-50 dark:text-rose-400 dark:hover:bg-rose-500/10"
+            >
+              <Trash2 aria-hidden className="size-4" /> Bereich löschen
+            </button>
+          )}
           <button type="button" onClick={() => setEditing(false)} className="rounded-xl px-3 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800">
             Abbrechen
           </button>
@@ -333,8 +357,13 @@ function SpaceHeader({ space, people, me }: { space: Space; people: string[]; me
       <Cat pose="pair" className="absolute right-0 bottom-0 text-slate-400 dark:text-slate-500" />
       <h1 className="flex items-center gap-2 text-2xl font-bold tracking-tight">
         <span aria-hidden>{space.emoji || kind.emoji}</span> {space.title}
-        <button onClick={open} className="ml-1 text-sm font-normal text-slate-400 hover:text-slate-600" aria-label="Bearbeiten">
-          ✏️
+        <button
+          onClick={open}
+          aria-label="Bearbeiten"
+          title="Name, Art, Datum ändern oder Bereich löschen"
+          className="ml-1 flex items-center gap-1 rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-600 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700"
+        >
+          <Settings2 aria-hidden className="size-3.5" /> Bearbeiten
         </button>
       </h1>
       <div className="mt-2 flex flex-wrap items-center gap-1.5 text-sm text-slate-500 dark:text-slate-400">
