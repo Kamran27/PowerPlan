@@ -7,6 +7,7 @@ import { balances, centsToInput, formatEuro, parseEuro, settle } from '../lib/ex
 import { softField } from '../lib/pillStyles'
 import { addExpense, deleteExpense, shortName, updateExpense } from '../lib/spaces'
 import { EditButtons } from './BudgetPanel'
+import OwnerSelect, { OwnerBadge } from './OwnerSelect'
 import Avatar from './Avatar'
 import { SittingCat } from './Cats'
 import { useToast } from './Toast'
@@ -22,6 +23,8 @@ export default function ExpensesPanel({ space, people, me }: { space: Space; peo
   const [title, setTitle] = useState('')
   const [amount, setAmount] = useState('')
   const [paidBy, setPaidBy] = useState(me ?? people[0] ?? '')
+  const [forPerson, setForPerson] = useState('')
+  const [filter, setFilter] = useState('alle')
   const [editId, setEditId] = useState<string>()
   const toast = useToast()
   const name = (p: string) => (p === me ? 'Ich' : shortName(p))
@@ -30,6 +33,8 @@ export default function ExpensesPanel({ space, people, me }: { space: Space; peo
     () => [...(expenses ?? [])].sort((a, b) => b.date.localeCompare(a.date) || b.createdAt.localeCompare(a.createdAt)),
     [expenses],
   )
+  // Filter im Verlauf: alle, nur gemeinsame oder persönliche einer Person
+  const shown = filter === 'alle' ? sorted : filter === 'gemeinsam' ? sorted.filter((e) => !e.to && !e.forPerson) : sorted.filter((e) => e.forPerson === filter)
   const bal = useMemo(() => balances(expenses ?? [], people), [expenses, people])
   const transfers = settle(bal)
   const month = todayISO().slice(0, 7)
@@ -41,7 +46,7 @@ export default function ExpensesPanel({ space, people, me }: { space: Space; peo
   async function add(e: FormEvent) {
     e.preventDefault()
     if (!title.trim() || !cents) return
-    await addExpense(space, { title, amount: cents, paidBy: paidBy || me || people[0] })
+    await addExpense(space, { title, amount: cents, paidBy: paidBy || me || people[0], ...(forPerson ? { forPerson } : {}) })
     setTitle('')
     setAmount('')
   }
@@ -98,6 +103,7 @@ export default function ExpensesPanel({ space, people, me }: { space: Space; peo
             aria-label="Betrag in Euro"
             className={`${softField} flex-[1_1_6rem] text-right tabular-nums ${amount && !cents ? '!ring-rose-400' : ''}`}
           />
+          {people.length > 1 && <OwnerSelect value={forPerson} onChange={setForPerson} people={people} me={me} />}
         </div>
         <div className="flex flex-wrap items-center gap-1.5">
           <span className="mr-1 text-xs text-slate-500 dark:text-slate-400">Bezahlt von</span>
@@ -125,14 +131,39 @@ export default function ExpensesPanel({ space, people, me }: { space: Space; peo
         </div>
         {people.length > 1 && cents && (
           <p className="text-xs text-slate-500 dark:text-slate-400">
-            Wird aufgeteilt: je {formatEuro(Math.round(cents / people.length))} pro Person
+            {forPerson
+              ? `Persönlich für ${name(forPerson)} – wird nicht geteilt${forPerson !== paidBy ? `, ${name(forPerson)} schuldet ${name(paidBy)} ${formatEuro(cents)}` : ''}`
+              : `Wird aufgeteilt: je ${formatEuro(Math.round(cents / people.length))} pro Person`}
           </p>
         )}
       </form>
 
       {/* Verlauf */}
       <section className={card}>
-        <h2 className="font-semibold">Verlauf</h2>
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <h2 className="font-semibold">Verlauf</h2>
+          {people.length > 1 && (
+            <div className="flex flex-wrap gap-1 text-xs">
+              {[['alle', 'Alle'], ['gemeinsam', '👥 Gemeinsam'], ...people.map((p) => [p, `👤 ${name(p)}`])].map(([v, label]) => (
+                <button
+                  key={v}
+                  onClick={() => setFilter(v)}
+                  aria-pressed={filter === v}
+                  className={`rounded-full px-2.5 py-1 font-medium ${
+                    filter === v ? 'bg-indigo-100 text-indigo-700 dark:bg-indigo-500/20 dark:text-indigo-300' : 'text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800'
+                  }`}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+        {filter !== 'alle' && (
+          <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+            {filter === 'gemeinsam' ? 'Gemeinsame Ausgaben' : `Persönliche Ausgaben von ${name(filter)}`}: {formatEuro(shown.filter((e) => !e.to).reduce((s, e) => s + e.amount, 0))}
+          </p>
+        )}
         {expenses && sorted.length === 0 && (
           <div className="py-6 text-center text-sm text-slate-500 dark:text-slate-400">
             <SittingCat className="mx-auto mb-2 w-12 text-slate-300 dark:text-slate-600" />
@@ -140,7 +171,7 @@ export default function ExpensesPanel({ space, people, me }: { space: Space; peo
           </div>
         )}
         <ul className="mt-2 divide-y divide-slate-100 dark:divide-slate-800">
-          {sorted.map((e) => (
+          {shown.map((e) => (
             editId === e.id ? (
               <li key={e.id} className="py-2">
                 <ExpenseEditor expense={e} people={people} me={me} onClose={() => setEditId(undefined)} />
@@ -149,7 +180,10 @@ export default function ExpensesPanel({ space, people, me }: { space: Space; peo
             <li key={e.id} className="group flex items-center gap-3 py-2 text-sm">
               <Avatar email={e.paidBy} me={me} size="sm" />
               <button onClick={() => setEditId(e.id)} className="min-w-0 flex-1 text-left" title="Bearbeiten">
-                <p className="truncate font-medium">{e.to ? `💸 Ausgleich an ${name(e.to)}` : e.title}</p>
+                <p className="truncate font-medium">
+                  {e.to ? `💸 Ausgleich an ${name(e.to)}` : e.title}
+                  <OwnerBadge owner={e.forPerson} me={me} />
+                </p>
                 <p className="text-xs text-slate-500 dark:text-slate-400">
                   {formatDayShort(e.date)} · {name(e.paidBy)} hat bezahlt
                 </p>
@@ -188,6 +222,7 @@ function ExpenseEditor({ expense, people, me, onClose }: { expense: Expense; peo
   const [paidBy, setPaidBy] = useState(expense.paidBy)
   const [to, setTo] = useState(expense.to ?? '')
   const [date, setDate] = useState(expense.date)
+  const [forPerson, setForPerson] = useState(expense.forPerson ?? '')
   const cents = parseEuro(amount)
   const everyone = Array.from(new Set([...people, expense.paidBy, ...(expense.to ? [expense.to] : [])]))
   const name = (p: string) => (p === me ? 'Ich' : shortName(p))
@@ -197,7 +232,7 @@ function ExpenseEditor({ expense, people, me, onClose }: { expense: Expense; peo
   async function save(e: FormEvent) {
     e.preventDefault()
     if (!valid) return
-    await updateExpense(expense.id, { amount: cents, paidBy, date, ...(transfer ? { to } : { title: title.trim() }) })
+    await updateExpense(expense.id, { amount: cents, paidBy, date, ...(transfer ? { to } : { title: title.trim(), forPerson: forPerson || undefined }) })
     onClose()
   }
 
@@ -224,6 +259,12 @@ function ExpenseEditor({ expense, people, me, onClose }: { expense: Expense; peo
             </option>
           ))}
         </select>
+        {!transfer && people.length > 1 && (
+          <>
+            für
+            <OwnerSelect value={forPerson} onChange={setForPerson} people={people} me={me} />
+          </>
+        )}
         {transfer && (
           <>
             an

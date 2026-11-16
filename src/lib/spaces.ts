@@ -260,7 +260,7 @@ export async function clearDoneItems(list: ShoppingList) {
 
 /* ---------- Kosten teilen ---------- */
 
-export async function addExpense(space: Space, e: { title: string; amount: number; paidBy: string; to?: string; date?: string }) {
+export async function addExpense(space: Space, e: { title: string; amount: number; paidBy: string; to?: string; date?: string; forPerson?: string }) {
   await db.expenses.add({
     spaceId: space.id,
     realmId: space.realmId,
@@ -268,12 +268,13 @@ export async function addExpense(space: Space, e: { title: string; amount: numbe
     amount: e.amount,
     paidBy: e.paidBy,
     ...(e.to ? { to: e.to } : {}),
+    ...(e.forPerson ? { forPerson: e.forPerson } : {}),
     date: e.date || todayISO(),
     createdAt: new Date().toISOString(),
   } as Expense)
 }
 
-export async function updateExpense(id: string, changes: Partial<Pick<Expense, 'title' | 'amount' | 'paidBy' | 'to' | 'date'>>) {
+export async function updateExpense(id: string, changes: Partial<Pick<Expense, 'title' | 'amount' | 'paidBy' | 'to' | 'date' | 'forPerson'>>) {
   await db.expenses.update(id, changes)
 }
 

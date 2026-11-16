@@ -91,6 +91,8 @@ export interface Expense {
   paidBy: string
   /** Ausgleich: an wen das Geld ging (dann keine Ausgabe) */
   to?: string
+  /** Persönliche Ausgabe dieser Person (E-Mail). Fehlt = gemeinsam, wird geteilt */
+  forPerson?: string
   date: string
   createdAt: string
 }
@@ -100,12 +102,15 @@ export interface BudgetItem {
   id: string
   spaceId: string
   realmId: string
-  kind: 'fix' | 'goal'
+  /** fix = Fixkosten · goal = Sparziel · limit = Monatsbudget einer Person (owner) */
+  kind: 'fix' | 'goal' | 'limit'
   title: string
   /** fix: Betrag pro Intervall · goal: Zielbetrag */
   amount: number
   /** fix: monthly | quarterly | yearly */
   interval?: 'monthly' | 'quarterly' | 'yearly'
+  /** fix/limit: gehört dieser Person (E-Mail). Fehlt bei fix = gemeinsam */
+  owner?: string
   /** fix: fällig am X. des Monats */
   day?: number
   /** goal: schon gespart */

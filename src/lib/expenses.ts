@@ -1,6 +1,6 @@
 /*
- * Kosten teilen (wie „Splitwise“, nur einfacher): Jede Ausgabe wird gleichmäßig auf alle Personen
- * im Bereich verteilt. Ein Ausgleich ist eine Überweisung von einer Person an eine andere.
+ * Kosten teilen (wie „Splitwise“, nur einfacher): Gemeinsame Ausgaben werden gleichmäßig auf alle
+ * Personen im Bereich verteilt, persönliche gehören einer Person. Ein Ausgleich ist eine Überweisung von einer Person an eine andere.
  * Beträge in Cent (ganze Zahlen), damit keine Rundungsfehler entstehen.
  */
 
@@ -9,6 +9,8 @@ export interface ExpenseLike {
   paidBy: string
   /** Ausgleich: Geld von `paidBy` an `to` (keine Ausgabe) */
   to?: string
+  /** Persönliche Ausgabe dieser Person (wird nicht geteilt). Fehlt = gemeinsam, gleich aufgeteilt */
+  forPerson?: string
 }
 
 /** Saldo pro Person in Cent: positiv = bekommt Geld, negativ = schuldet Geld. */
@@ -20,6 +22,11 @@ export function balances(expenses: ExpenseLike[], people: string[]): Map<string,
     add(e.paidBy, e.amount)
     if (e.to) {
       add(e.to, -e.amount)
+      continue
+    }
+    if (e.forPerson) {
+      // Persönlich: gehört ganz dieser Person (hat jemand anderes bezahlt, schuldet sie es ihm)
+      add(e.forPerson, -e.amount)
       continue
     }
     const n = people.length || 1

@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { balances, formatEuro, parseEuro, settle } from './expenses'
 import { countdownText, kindInfo, SPACE_KINDS } from './spaceKinds'
 import { focusRange } from './focusRange'
-import { fixTotals, goalPct, monthlyToReach, nextDue, perMonth } from './budget'
+import { fixTotals, goalPct, monthlyToReach, nextDue, perMonth, perPersonMonth } from './budget'
 
 const A = 'a@x.de'
 const B = 'b@x.de'
@@ -99,5 +99,31 @@ describe('Budget', () => {
     expect(goalPct(120000, 100000)).toBe(100)
     expect(monthlyToReach(25000, 100000, '2027-05-01', '2026-11-16')).toBe(12500)
     expect(monthlyToReach(100000, 100000, '2027-05-01', '2026-11-16')).toBeUndefined()
+  })
+})
+
+describe('Persönlich und gemeinsam', () => {
+  it('persönliche Ausgabe wird nicht geteilt; von anderem bezahlt → Schuld', () => {
+    // A zahlt 30 € für B persönlich, B zahlt 20 € gemeinsam
+    const bal = balances([{ amount: 3000, paidBy: A, forPerson: B }, { amount: 2000, paidBy: B }], [A, B])
+    expect(bal.get(A)).toBe(2000)
+    expect(bal.get(B)).toBe(-2000)
+    // selbst bezahlt, nur für sich → keine Schuld
+    expect(balances([{ amount: 5000, paidBy: A, forPerson: A }], [A, B]).get(B)).toBe(0)
+  })
+  it('Monat pro Person: Fixkosten und Ausgaben', () => {
+    const r = perPersonMonth(
+      [A, B],
+      [{ amount: 100000 }, { amount: 2000, owner: A }, { amount: 12000, interval: 'yearly', owner: B }],
+      [
+        { amount: 6000, date: '2026-11-03' },
+        { amount: 1500, date: '2026-11-05', forPerson: B },
+        { amount: 9999, date: '2026-10-30' },
+        { amount: 500, date: '2026-11-06', to: A },
+      ],
+      '2026-11',
+    )
+    expect(r[0]).toEqual({ person: A, fix: 52000, fixOwn: 2000, spent: 3000, spentOwn: 0, total: 55000 })
+    expect(r[1]).toEqual({ person: B, fix: 51000, fixOwn: 1000, spent: 4500, spentOwn: 1500, total: 55500 })
   })
 })

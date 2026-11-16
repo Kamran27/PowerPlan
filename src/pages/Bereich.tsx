@@ -220,7 +220,7 @@ export default function Bereich() {
       )}
 
       {tab === 'kosten' && <ExpensesPanel space={space} people={people} me={me} />}
-      {tab === 'budget' && <BudgetPanel space={space} people={people} />}
+      {tab === 'budget' && <BudgetPanel space={space} people={people} me={me} />}
 
       {tab === 'mitglieder' && (
         <section className={card}>

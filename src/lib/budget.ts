@@ -14,6 +14,8 @@ export const INTERVALS: { value: BudgetInterval; label: string; perYear: number 
 export interface FixCostLike {
   amount: number
   interval?: BudgetInterval
+  /** Persönliche Fixkosten dieser Person. Fehlt = gemeinsam */
+  owner?: string
 }
 
 /** Auf den Monat umgerechnet (gerundet auf Cent) */
@@ -55,4 +57,53 @@ export function monthlyToReach(saved: number, target: number, by: string | undef
   const [y2, m2] = by.split('-').map(Number)
   const months = Math.max(1, (y2 - y1) * 12 + (m2 - m1))
   return Math.ceil((target - saved) / months)
+}
+
+/** Anteil einer Person an einem Betrag: persönlich → ganz oder gar nicht, gemeinsam → gleich geteilt */
+export function shareOf(amount: number, owner: string | undefined, person: string, people: string[]): number {
+  if (owner) return owner === person ? amount : 0
+  const n = people.length || 1
+  return Math.round(amount / n)
+}
+
+export interface PersonMonth {
+  person: string
+  /** Fixkosten pro Monat: persönliche + Anteil an gemeinsamen */
+  fix: number
+  /** davon persönlich */
+  fixOwn: number
+  /** Ausgaben im Monat: persönliche + Anteil an gemeinsamen */
+  spent: number
+  /** davon persönlich */
+  spentOwn: number
+  total: number
+}
+
+/**
+ * Pro Person: was kostet sie dieser Monat? Fixkosten (auf den Monat umgerechnet) und
+ * Ausgaben des Monats `month` ("JJJJ-MM"); Ausgleichs-Überweisungen zählen nicht.
+ */
+export function perPersonMonth(
+  people: string[],
+  fixes: FixCostLike[],
+  expenses: { amount: number; date: string; to?: string; forPerson?: string }[],
+  month: string,
+): PersonMonth[] {
+  return people.map((person) => {
+    let fix = 0
+    let fixOwn = 0
+    for (const f of fixes) {
+      const m = perMonth(f)
+      fix += shareOf(m, f.owner, person, people)
+      if (f.owner === person) fixOwn += m
+    }
+    let spent = 0
+    let spentOwn = 0
+    for (const e of expenses) {
+      if (e.to || !e.date.startsWith(month)) continue
+      spent += shareOf(e.amount, e.forPerson, person, people)
+      if (e.forPerson === person) spentOwn += e.amount
+    }
+    return { person, fix, fixOwn, spent, spentOwn, total: fix + spent }
+  })
 }
