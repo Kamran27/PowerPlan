@@ -1,15 +1,14 @@
 import { useLiveQuery } from 'dexie-react-hooks'
 import { CalendarClock, Pencil, PiggyBank, Plus, X } from 'lucide-react'
 import { useState, type FormEvent } from 'react'
-import { db, type BudgetItem, type Expense, type Space } from '../db'
-import { fixTotals, goalPct, INTERVALS, monthlyToReach, nextDue, perMonth, perPersonMonth, type BudgetInterval } from '../lib/budget'
+import { db, type BudgetItem, type Space } from '../db'
+import { goalPct, INTERVALS, monthlyToReach, nextDue, perMonth, type BudgetInterval } from '../lib/budget'
 import { formatDayShort, todayISO } from '../lib/date'
 import { centsToInput, formatEuro, parseEuro } from '../lib/expenses'
 import { softField } from '../lib/pillStyles'
-import { addBudgetItem, deleteBudgetItem, shortName, updateBudgetItem } from '../lib/spaces'
+import { addBudgetItem, deleteBudgetItem, moveFixToShared, PERSONAL_SPACE, updateBudgetItem } from '../lib/spaces'
 import { SittingCat } from './Cats'
-import Avatar from './Avatar'
-import OwnerSelect, { OwnerBadge } from './OwnerSelect'
+import { OwnerBadge, PayerBadge, PayerSelect } from './OwnerSelect'
 import { useToast } from './Toast'
 import { confirmDialog } from '../lib/confirm'
 
@@ -20,38 +19,20 @@ const SUGGESTIONS = ['Miete', 'Strom', 'Internet', 'Handy', 'Versicherungen', 'S
  * Budget-Bereich: Fixkosten (was jeden Monat sicher weggeht) und Sparziele mit Fortschritt.
  * Oben die Monatsübersicht: Fixkosten + Ausgaben dieses Monats (aus „Kosten teilen“).
  */
-export default function BudgetPanel({ space, people, me }: { space: Space; people: string[]; me?: string }) {
+export default function BudgetPanel({ space, people, me }: { space: Pick<Space, 'id' | 'realmId'>; people: string[]; me?: string }) {
   const items = useLiveQuery(() => db.budgetItems.where('spaceId').equals(space.id).toArray(), [space.id])
-  const expenses = useLiveQuery(() => db.expenses.where('spaceId').equals(space.id).toArray(), [space.id])
   const today = todayISO()
   const fixes = (items ?? []).filter((i) => i.kind === 'fix').sort((a, b) => perMonth(b) - perMonth(a))
   const goals = (items ?? []).filter((i) => i.kind === 'goal').sort((a, b) => a.createdAt.localeCompare(b.createdAt))
-  const totals = fixTotals(fixes)
-  const spentMonth = (expenses ?? []).filter((e) => !e.to && e.date.startsWith(today.slice(0, 7))).reduce((s, e) => s + e.amount, 0)
-  const savedTotal = goals.reduce((s, g) => s + (g.saved ?? 0), 0)
-
   return (
     <div className="grid gap-4">
-      {/* Monatsübersicht */}
-      <section className={`${card} grid grid-cols-2 gap-3 sm:grid-cols-4`}>
-        <Stat label="Fixkosten / Monat" value={formatEuro(totals.month)} />
-        <Stat label="Fixkosten / Jahr" value={formatEuro(totals.year)} />
-        <Stat label="Ausgaben diesen Monat" value={formatEuro(spentMonth)} hint="aus „Kosten“" />
-        {people.length > 1 ? (
-          <Stat label="Gemeinsame Fixkosten / Monat" value={formatEuro(fixTotals(fixes.filter((f) => !f.owner)).month)} hint="werden geteilt" />
-        ) : (
-          <Stat label="Gespart" value={formatEuro(savedTotal)} />
-        )}
-      </section>
-
-      <PerPerson space={space} people={people} me={me} fixes={fixes} limits={(items ?? []).filter((i) => i.kind === 'limit')} expenses={expenses ?? []} month={today.slice(0, 7)} />
       <FixCosts space={space} fixes={fixes} today={today} people={people} me={me} />
       <Goals space={space} goals={goals} today={today} />
     </div>
   )
 }
 
-function Stat({ label, value, hint }: { label: string; value: string; hint?: string }) {
+export function Stat({ label, value, hint }: { label: string; value: string; hint?: string }) {
   return (
     <div className="rounded-xl bg-slate-50 p-3 dark:bg-slate-800/60">
       <p className="text-xs text-slate-500 dark:text-slate-400">{label}</p>
@@ -61,137 +42,20 @@ function Stat({ label, value, hint }: { label: string; value: string; hint?: str
   )
 }
 
-/* ---------- Pro Person ---------- */
-
-/**
- * Was kostet jede Person diesen Monat? Persönliche Fixkosten/Ausgaben + Anteil an gemeinsamen.
- * Optional ein Monatsbudget pro Person mit Balken (grün → gelb ab 80 % → rot drüber).
- */
-function PerPerson({
-  space,
-  people,
-  me,
-  fixes,
-  limits,
-  expenses,
-  month,
-}: {
-  space: Space
-  people: string[]
-  me?: string
-  fixes: BudgetItem[]
-  limits: BudgetItem[]
-  expenses: Expense[]
-  month: string
-}) {
-  const rows = perPersonMonth(people, fixes, expenses, month)
-  if (!rows.length) return null
-  const name = (p: string) => (p === me ? 'Ich' : shortName(p))
-  return (
-    <section className={card}>
-      <h2 className="font-semibold">Pro Person – diesen Monat</h2>
-      <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">Persönliches plus Anteil am Gemeinsamen. Mit Monatsbudget seht ihr, wie viel noch übrig ist.</p>
-      <div className={`mt-3 grid gap-3 ${rows.length > 1 ? 'sm:grid-cols-2' : ''}`}>
-        {rows.map((r) => (
-          <PersonCard key={r.person} space={space} row={r} name={name(r.person)} me={me} limit={limits.find((l) => l.owner === r.person)} />
-        ))}
-      </div>
-    </section>
-  )
-}
-
-function PersonCard({ space, row, name, me, limit }: { space: Space; row: ReturnType<typeof perPersonMonth>[number]; name: string; me?: string; limit?: BudgetItem }) {
-  const [editing, setEditing] = useState(false)
-  const [value, setValue] = useState('')
-  const cents = parseEuro(value)
-  const pct = limit ? Math.round((row.total / limit.amount) * 100) : 0
-  const left = limit ? limit.amount - row.total : 0
-  const bar = pct > 100 ? 'bg-rose-500' : pct >= 80 ? 'bg-amber-500' : 'bg-emerald-500'
-
-  async function save(e: FormEvent) {
-    e.preventDefault()
-    if (!cents) {
-      if (limit && !value.trim()) await deleteBudgetItem(limit.id)
-    } else if (limit) await updateBudgetItem(limit.id, { amount: cents })
-    else await addBudgetItem(space, { kind: 'limit', title: 'Monatsbudget', amount: cents, owner: row.person })
-    setEditing(false)
-  }
-
-  return (
-    <div className="rounded-xl bg-slate-50 p-3 dark:bg-slate-800/60">
-      <div className="flex items-center gap-2">
-        <Avatar email={row.person} me={me} size="sm" />
-        <span className="font-semibold">{name}</span>
-        <span className="ml-auto text-lg font-bold tabular-nums">{formatEuro(row.total)}</span>
-      </div>
-      <dl className="mt-2 grid gap-0.5 text-xs text-slate-600 dark:text-slate-300">
-        <div className="flex justify-between gap-2">
-          <dt>Fixkosten</dt>
-          <dd className="tabular-nums">
-            {formatEuro(row.fix)}
-            {row.fixOwn > 0 && <span className="text-slate-400"> · davon persönlich {formatEuro(row.fixOwn)}</span>}
-          </dd>
-        </div>
-        <div className="flex justify-between gap-2">
-          <dt>Ausgaben</dt>
-          <dd className="tabular-nums">
-            {formatEuro(row.spent)}
-            {row.spentOwn > 0 && <span className="text-slate-400"> · davon persönlich {formatEuro(row.spentOwn)}</span>}
-          </dd>
-        </div>
-      </dl>
-      {limit && !editing && (
-        <div className="mt-2">
-          <div className="h-2 overflow-hidden rounded-full bg-slate-200 dark:bg-slate-700" role="progressbar" aria-valuenow={Math.min(pct, 100)} aria-valuemin={0} aria-valuemax={100} aria-label={`${name}: ${pct} % vom Monatsbudget`}>
-            <div className={`h-full rounded-full transition-all ${bar}`} style={{ width: `${Math.min(pct, 100)}%` }} />
-          </div>
-          <p className={`mt-1 text-xs ${left < 0 ? 'font-semibold text-rose-600 dark:text-rose-400' : 'text-slate-500 dark:text-slate-400'}`}>
-            {left >= 0 ? `Noch ${formatEuro(left)} von ${formatEuro(limit.amount)} übrig` : `${formatEuro(-left)} über dem Budget von ${formatEuro(limit.amount)}`}
-          </p>
-        </div>
-      )}
-      {editing ? (
-        <form onSubmit={save} onKeyDown={(e) => e.key === 'Escape' && setEditing(false)} className="mt-2 flex items-center gap-1.5">
-          <input
-            autoFocus
-            value={value}
-            onChange={(e) => setValue(e.target.value)}
-            placeholder="z. B. 1.500"
-            inputMode="decimal"
-            aria-label={`Monatsbudget für ${name} (leer = entfernen)`}
-            className="w-28 rounded-lg bg-white px-2 py-1 text-right text-xs tabular-nums ring-1 ring-slate-200 outline-none focus:ring-2 focus:ring-indigo-500/50 dark:bg-slate-900 dark:ring-slate-700"
-          />
-          <button type="submit" className="rounded-lg bg-indigo-600 px-2 py-1 text-xs font-semibold text-white hover:bg-indigo-500">
-            OK
-          </button>
-          <button type="button" onClick={() => setEditing(false)} className="px-1 text-xs text-slate-500 hover:underline">
-            Abbrechen
-          </button>
-        </form>
-      ) : (
-        <button
-          onClick={() => {
-            setValue(limit ? centsToInput(limit.amount) : '')
-            setEditing(true)
-          }}
-          className="mt-2 text-xs font-medium text-indigo-600 hover:underline dark:text-indigo-400"
-        >
-          {limit ? 'Monatsbudget ändern' : '+ Monatsbudget festlegen'}
-        </button>
-      )}
-    </div>
-  )
-}
-
 /* ---------- Fixkosten ---------- */
 
-function FixCosts({ space, fixes, today, people, me }: { space: Space; fixes: BudgetItem[]; today: string; people: string[]; me?: string }) {
+function FixCosts({ space, fixes, today, people, me }: { space: Pick<Space, 'id' | 'realmId'>; fixes: BudgetItem[]; today: string; people: string[]; me?: string }) {
   const [title, setTitle] = useState('')
   const [amount, setAmount] = useState('')
   const [interval, setInterval] = useState<BudgetInterval>('monthly')
   const [day, setDay] = useState('')
-  const [owner, setOwner] = useState('')
+  const [payer, setPayer] = useState('')
   const [editId, setEditId] = useState<string>()
+  // Im persönlichen Budget: gemeinsame Budget-Bereiche als Ziel für „ins Gemeinsame“
+  const sharedBudgets = useLiveQuery(
+    async () => (space.id === PERSONAL_SPACE.id ? (await db.spaces.toArray()).filter((s) => s.kind === 'budget') : []),
+    [space.id],
+  )
   const toast = useToast()
   const cents = parseEuro(amount)
   const dayNum = Number(day)
@@ -199,7 +63,7 @@ function FixCosts({ space, fixes, today, people, me }: { space: Space; fixes: Bu
   async function add(e: FormEvent) {
     e.preventDefault()
     if (!title.trim() || !cents) return
-    await addBudgetItem(space, { kind: 'fix', title, amount: cents, interval, ...(dayNum >= 1 && dayNum <= 31 ? { day: dayNum } : {}), ...(owner ? { owner } : {}) })
+    await addBudgetItem(space, { kind: 'fix', title, amount: cents, interval, ...(dayNum >= 1 && dayNum <= 31 ? { day: dayNum } : {}), ...(payer ? { paidBy: payer } : {}) })
     setTitle('')
     setAmount('')
     setDay('')
@@ -212,7 +76,11 @@ function FixCosts({ space, fixes, today, people, me }: { space: Space; fixes: Bu
       <h2 className="flex items-center gap-2 font-semibold">
         <CalendarClock aria-hidden className="size-5 text-indigo-500" /> Fixkosten & Abos
       </h2>
-      <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">Was regelmäßig abgeht – so seht ihr, wie viel jeden Monat schon verplant ist.</p>
+      <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">
+        {people.length > 1
+          ? 'Was regelmäßig abgeht. „Zahlt“ = wer es per Dauerauftrag bezahlt – die Hälfte zählt dann im „Wer schuldet wem“.'
+          : 'Was regelmäßig abgeht – so siehst du, wie viel jeden Monat schon verplant ist.'}
+      </p>
 
       {fixes.length > 0 && (
         <ul className="mt-3 divide-y divide-slate-100 dark:divide-slate-800">
@@ -226,13 +94,26 @@ function FixCosts({ space, fixes, today, people, me }: { space: Space; fixes: Bu
               <button onClick={() => setEditId(f.id)} className="min-w-0 flex-1 text-left" title="Bearbeiten">
                 <p className="truncate font-medium">
                   {f.title}
-                  <OwnerBadge owner={f.owner} me={me} />
+                  {people.length > 1 && <PayerBadge payer={f.paidBy} me={me} />}
+                  <OwnerBadge owner={f.forPerson} me={me} />
                 </p>
                 <p className="text-xs text-slate-500 dark:text-slate-400">
                   {formatEuro(f.amount)} {INTERVALS.find((i) => i.value === (f.interval ?? 'monthly'))!.label}
                   {f.day ? ` · nächstes Mal ${formatDayShort(nextDue(f.day, today))}` : ''}
                 </p>
               </button>
+              {me && sharedBudgets?.[0] && (
+                <button
+                  onClick={async () => {
+                    await moveFixToShared(f, sharedBudgets[0], me)
+                    toast(`„${f.title}“ ist jetzt im gemeinsamen Budget „${sharedBudgets[0].title}“ (zahlt ich)`)
+                  }}
+                  title={`Ins gemeinsame Budget „${sharedBudgets[0].title}“ verschieben – du zahlst es`}
+                  className="shrink-0 rounded-md px-1.5 py-0.5 text-[11px] font-medium text-slate-400 opacity-0 group-hover:opacity-100 hover:bg-slate-100 hover:text-indigo-600 focus:opacity-100 max-md:opacity-100 dark:hover:bg-slate-800"
+                >
+                  ↗ Gemeinsam
+                </button>
+              )}
               <button
                 onClick={() => setEditId(f.id)}
                 aria-label={`${f.title} bearbeiten`}
@@ -286,7 +167,7 @@ function FixCosts({ space, fixes, today, people, me }: { space: Space; fixes: Bu
             aria-label="Fällig am Tag des Monats (optional)"
             className={`${softField} !w-28`}
           />
-          {people.length > 1 && <OwnerSelect value={owner} onChange={setOwner} people={people} me={me} />}
+          {people.length > 1 && <PayerSelect value={payer} onChange={setPayer} people={people} me={me} />}
           <button
             type="submit"
             disabled={!title.trim() || !cents}
@@ -320,14 +201,14 @@ function FixEditor({ item, people, me, onClose }: { item: BudgetItem; people: st
   const [amount, setAmount] = useState(centsToInput(item.amount))
   const [interval, setInterval] = useState<BudgetInterval>(item.interval ?? 'monthly')
   const [day, setDay] = useState(item.day ? String(item.day) : '')
-  const [owner, setOwner] = useState(item.owner ?? '')
+  const [payer, setPayer] = useState(item.paidBy ?? '')
   const cents = parseEuro(amount)
   const dayNum = Number(day)
 
   async function save(e: FormEvent) {
     e.preventDefault()
     if (!title.trim() || !cents) return
-    await updateBudgetItem(item.id, { title: title.trim(), amount: cents, interval, day: dayNum >= 1 && dayNum <= 31 ? dayNum : undefined, owner: owner || undefined })
+    await updateBudgetItem(item.id, { title: title.trim(), amount: cents, interval, day: dayNum >= 1 && dayNum <= 31 ? dayNum : undefined, paidBy: payer || undefined })
     onClose()
   }
 
@@ -357,7 +238,7 @@ function FixEditor({ item, people, me, onClose }: { item: BudgetItem; people: st
           aria-label="Fällig am Tag des Monats (optional)"
           className={`${softField} !w-28`}
         />
-        {people.length > 1 && <OwnerSelect value={owner} onChange={setOwner} people={people} me={me} />}
+        {people.length > 1 && <PayerSelect value={payer} onChange={setPayer} people={people} me={me} />}
       </div>
       <EditButtons onClose={onClose} disabled={!title.trim() || !cents} />
     </form>
@@ -379,7 +260,7 @@ export function EditButtons({ onClose, disabled }: { onClose: () => void; disabl
 
 /* ---------- Sparziele ---------- */
 
-function Goals({ space, goals, today }: { space: Space; goals: BudgetItem[]; today: string }) {
+function Goals({ space, goals, today }: { space: Pick<Space, 'id' | 'realmId'>; goals: BudgetItem[]; today: string }) {
   const [title, setTitle] = useState('')
   const [target, setTarget] = useState('')
   const [by, setBy] = useState('')

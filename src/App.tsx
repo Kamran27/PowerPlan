@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { CalendarCheck, CalendarDays, ChartColumn, Ellipsis, ListChecks, Repeat, Search, Settings, Sun, Target, Users } from 'lucide-react'
+import { CalendarCheck, CalendarDays, ChartColumn, Ellipsis, ListChecks, Repeat, Search, Settings, Sun, Target, Users, Wallet } from 'lucide-react'
 import { NavLink, Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-dom'
 import Heute from './pages/Heute'
 import Woche from './pages/Woche'
@@ -11,6 +11,7 @@ import Gewohnheiten from './pages/Gewohnheiten'
 import Ziele from './pages/Ziele'
 import Einstellungen from './pages/Einstellungen'
 import Suche from './pages/Suche'
+import MeinBudget from './pages/MeinBudget'
 import Wochenrueckblick from './pages/Wochenrueckblick'
 import LevelBadge from './components/LevelBadge'
 import ReminderService from './components/ReminderService'
@@ -36,6 +37,7 @@ const navItems = [
   { to: '/gemeinsam', label: 'Gemeinsam', short: 'Gemeinsam', icon: Users },
   { to: '/gewohnheiten', label: 'Gewohnheiten', short: 'Routinen', icon: Repeat },
   { to: '/ziele', label: 'Ziele', short: 'Ziele', icon: Target },
+  { to: '/mein-budget', label: 'Mein Budget', short: 'Budget', icon: Wallet, more: true },
   { to: '/suche', label: 'Suche', short: 'Suche', icon: Search, more: true },
   { to: '/wochenrueckblick', label: 'Wochenrückblick', short: 'Rückblick', icon: CalendarCheck, more: true },
   { to: '/statistik', label: 'Statistik', short: 'Statistik', icon: ChartColumn, more: true },
@@ -169,6 +171,7 @@ export default function App() {
             <Route path="/statistik" element={<Statistik />} />
             <Route path="/einstellungen" element={<Einstellungen />} />
             <Route path="/suche" element={<Suche />} />
+            <Route path="/mein-budget" element={<MeinBudget />} />
             <Route path="/wochenrueckblick" element={<Wochenrueckblick />} />
             <Route path="*" element={<Navigate to="/heute" replace />} />
           </Routes>

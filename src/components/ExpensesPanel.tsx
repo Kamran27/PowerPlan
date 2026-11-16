@@ -1,13 +1,15 @@
 import { useLiveQuery } from 'dexie-react-hooks'
-import { ArrowRight, Pencil, Plus, X } from 'lucide-react'
+import { Pencil, Plus, X } from 'lucide-react'
 import { useMemo, useState, type FormEvent } from 'react'
 import { db, type Expense, type Space } from '../db'
 import { formatDayShort, todayISO } from '../lib/date'
-import { balances, centsToInput, formatEuro, parseEuro, settle } from '../lib/expenses'
+import { centsToInput, formatEuro, parseEuro } from '../lib/expenses'
+import { categoryOf, EXPENSE_CATEGORIES, expenseCategory, guessExpenseCategory } from '../lib/budget'
+import BudgetStand from './BudgetStand'
 import { softField } from '../lib/pillStyles'
 import { addExpense, deleteExpense, shortName, updateExpense } from '../lib/spaces'
 import { EditButtons } from './BudgetPanel'
-import OwnerSelect, { OwnerBadge } from './OwnerSelect'
+import { OwnerBadge } from './OwnerSelect'
 import Avatar from './Avatar'
 import { SittingCat } from './Cats'
 import { useToast } from './Toast'
@@ -18,12 +20,24 @@ const card = 'rounded-2xl bg-white p-5 shadow-sm ring-1 ring-slate-200 dark:bg-s
  * Kosten teilen: Ausgaben eintragen (wer hat bezahlt), gleichmäßig auf alle verteilt.
  * Oben steht, wer wem wie viel schuldet – mit „Ausgleichen“-Knopf.
  */
-export default function ExpensesPanel({ space, people, me }: { space: Space; people: string[]; me?: string }) {
+export default function ExpensesPanel({
+  space,
+  people,
+  me,
+  showStand = true,
+}: {
+  space: Pick<Space, 'id' | 'realmId' | 'title'> & Partial<Space>
+  people: string[]
+  me?: string
+  /** „Wer schuldet wem“ oben anzeigen (im Budget steht er in der Übersicht) */
+  showStand?: boolean
+}) {
   const expenses = useLiveQuery(() => db.expenses.where('spaceId').equals(space.id).toArray(), [space.id])
   const [title, setTitle] = useState('')
   const [amount, setAmount] = useState('')
   const [paidBy, setPaidBy] = useState(me ?? people[0] ?? '')
-  const [forPerson, setForPerson] = useState('')
+  const [category, setCategory] = useState('')
+  const [date, setDate] = useState(todayISO())
   const [filter, setFilter] = useState('alle')
   const [editId, setEditId] = useState<string>()
   const toast = useToast()
@@ -33,10 +47,11 @@ export default function ExpensesPanel({ space, people, me }: { space: Space; peo
     () => [...(expenses ?? [])].sort((a, b) => b.date.localeCompare(a.date) || b.createdAt.localeCompare(a.createdAt)),
     [expenses],
   )
-  // Filter im Verlauf: alle, nur gemeinsame oder persönliche einer Person
-  const shown = filter === 'alle' ? sorted : filter === 'gemeinsam' ? sorted.filter((e) => !e.to && !e.forPerson) : sorted.filter((e) => e.forPerson === filter)
-  const bal = useMemo(() => balances(expenses ?? [], people), [expenses, people])
-  const transfers = settle(bal)
+  // Filter im Verlauf: alle oder eine Kategorie
+  const shown = filter === 'alle' ? sorted : sorted.filter((e) => !e.to && categoryOf(e).id === filter)
+  const usedCats = EXPENSE_CATEGORIES.filter((c) => sorted.some((e) => !e.to && categoryOf(e).id === c.id))
+  // Ohne eigene Wahl: Kategorie aus dem Text raten
+  const effectiveCat = category || (title.trim() ? guessExpenseCategory(title) : 'sonstiges')
   const month = todayISO().slice(0, 7)
   const spent = (expenses ?? []).filter((e) => !e.to)
   const total = spent.reduce((s, e) => s + e.amount, 0)
@@ -46,49 +61,15 @@ export default function ExpensesPanel({ space, people, me }: { space: Space; peo
   async function add(e: FormEvent) {
     e.preventDefault()
     if (!title.trim() || !cents) return
-    await addExpense(space, { title, amount: cents, paidBy: paidBy || me || people[0], ...(forPerson ? { forPerson } : {}) })
+    await addExpense(space, { title, amount: cents, paidBy: paidBy || me || people[0] || '', category: effectiveCat, date })
     setTitle('')
     setAmount('')
+    setCategory('')
   }
 
   return (
     <div className="grid gap-4">
-      {/* Stand: wer schuldet wem */}
-      <section className={card}>
-        <div className="flex flex-wrap items-baseline justify-between gap-2">
-          <h2 className="font-semibold">Stand</h2>
-          <span className="text-xs text-slate-500 dark:text-slate-400">
-            Diesen Monat {formatEuro(thisMonth)} · insgesamt {formatEuro(total)}
-          </span>
-        </div>
-        {people.length < 2 ? (
-          <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">Lade jemanden ein (Reiter „Mitglieder“), dann teilt die App die Kosten automatisch.</p>
-        ) : transfers.length === 0 ? (
-          <p className="mt-2 text-sm font-medium text-emerald-600 dark:text-emerald-400">✓ Alles ausgeglichen – niemand schuldet etwas.</p>
-        ) : (
-          <ul className="mt-3 grid gap-2">
-            {transfers.map((t) => (
-              <li key={t.from + t.to} className="flex flex-wrap items-center gap-2 rounded-xl bg-slate-50 px-3 py-2 text-sm dark:bg-slate-800/60">
-                <Avatar email={t.from} me={me} size="sm" />
-                <span className="font-medium">{name(t.from)}</span>
-                <ArrowRight aria-hidden className="size-4 text-slate-400" />
-                <Avatar email={t.to} me={me} size="sm" />
-                <span className="font-medium">{name(t.to)}</span>
-                <span className="ml-auto font-bold tabular-nums">{formatEuro(t.amount)}</span>
-                <button
-                  onClick={async () => {
-                    await addExpense(space, { title: 'Ausgleich', amount: t.amount, paidBy: t.from, to: t.to })
-                    toast(`💸 ${name(t.from)} → ${name(t.to)}: ${formatEuro(t.amount)} ausgeglichen`)
-                  }}
-                  className="rounded-lg bg-emerald-600 px-2.5 py-1 text-xs font-semibold text-white hover:bg-emerald-500"
-                >
-                  Ausgleichen
-                </button>
-              </li>
-            ))}
-          </ul>
-        )}
-      </section>
+      {showStand && space.createdAt && <BudgetStand space={space as Space} people={people} me={me} expenses={expenses ?? []} />}
 
       {/* Neue Ausgabe */}
       <form onSubmit={add} className={`${card} grid gap-2`}>
@@ -103,11 +84,14 @@ export default function ExpensesPanel({ space, people, me }: { space: Space; peo
             aria-label="Betrag in Euro"
             className={`${softField} flex-[1_1_6rem] text-right tabular-nums ${amount && !cents ? '!ring-rose-400' : ''}`}
           />
-          {people.length > 1 && <OwnerSelect value={forPerson} onChange={setForPerson} people={people} me={me} />}
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          <CategorySelect value={effectiveCat} onChange={setCategory} />
+          <input type="date" value={date} onChange={(e) => setDate(e.target.value)} aria-label="Datum" className={`${softField} !w-auto`} />
         </div>
         <div className="flex flex-wrap items-center gap-1.5">
-          <span className="mr-1 text-xs text-slate-500 dark:text-slate-400">Bezahlt von</span>
-          {people.map((p) => (
+          {people.length > 1 && <span className="mr-1 text-xs text-slate-500 dark:text-slate-400">Bezahlt von</span>}
+          {people.length > 1 && people.map((p) => (
             <button
               key={p}
               type="button"
@@ -131,9 +115,7 @@ export default function ExpensesPanel({ space, people, me }: { space: Space; peo
         </div>
         {people.length > 1 && cents && (
           <p className="text-xs text-slate-500 dark:text-slate-400">
-            {forPerson
-              ? `Persönlich für ${name(forPerson)} – wird nicht geteilt${forPerson !== paidBy ? `, ${name(forPerson)} schuldet ${name(paidBy)} ${formatEuro(cents)}` : ''}`
-              : `Wird aufgeteilt: je ${formatEuro(Math.round(cents / people.length))} pro Person`}
+            Wird aufgeteilt: je {formatEuro(Math.round(cents / people.length))} pro Person
           </p>
         )}
       </form>
@@ -141,10 +123,15 @@ export default function ExpensesPanel({ space, people, me }: { space: Space; peo
       {/* Verlauf */}
       <section className={card}>
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <h2 className="font-semibold">Verlauf</h2>
-          {people.length > 1 && (
+          <h2 className="font-semibold">
+            Verlauf{' '}
+            <span className="text-xs font-normal text-slate-500 dark:text-slate-400">
+              diesen Monat {formatEuro(thisMonth)} · insgesamt {formatEuro(total)}
+            </span>
+          </h2>
+          {usedCats.length > 1 && (
             <div className="flex flex-wrap gap-1 text-xs">
-              {[['alle', 'Alle'], ['gemeinsam', '👥 Gemeinsam'], ...people.map((p) => [p, `👤 ${name(p)}`])].map(([v, label]) => (
+              {[['alle', 'Alle'] as const, ...usedCats.map((c) => [c.id, `${c.emoji} ${c.label}`] as const)].map(([v, label]) => (
                 <button
                   key={v}
                   onClick={() => setFilter(v)}
@@ -161,7 +148,7 @@ export default function ExpensesPanel({ space, people, me }: { space: Space; peo
         </div>
         {filter !== 'alle' && (
           <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
-            {filter === 'gemeinsam' ? 'Gemeinsame Ausgaben' : `Persönliche Ausgaben von ${name(filter)}`}: {formatEuro(shown.filter((e) => !e.to).reduce((s, e) => s + e.amount, 0))}
+            {expenseCategory(filter).emoji} {expenseCategory(filter).label}: {formatEuro(shown.reduce((s, e) => s + e.amount, 0))}
           </p>
         )}
         {expenses && sorted.length === 0 && (
@@ -181,11 +168,12 @@ export default function ExpensesPanel({ space, people, me }: { space: Space; peo
               <Avatar email={e.paidBy} me={me} size="sm" />
               <button onClick={() => setEditId(e.id)} className="min-w-0 flex-1 text-left" title="Bearbeiten">
                 <p className="truncate font-medium">
-                  {e.to ? `💸 Ausgleich an ${name(e.to)}` : e.title}
+                  {e.to ? `💸 Ausgleich an ${name(e.to)}` : `${categoryOf(e).emoji} ${e.title}`}
                   <OwnerBadge owner={e.forPerson} me={me} />
                 </p>
                 <p className="text-xs text-slate-500 dark:text-slate-400">
-                  {formatDayShort(e.date)} · {name(e.paidBy)} hat bezahlt
+                  {formatDayShort(e.date)}
+                  {people.length > 1 && ` · ${name(e.paidBy)} hat bezahlt`}
                 </p>
               </button>
               <button
@@ -222,7 +210,7 @@ function ExpenseEditor({ expense, people, me, onClose }: { expense: Expense; peo
   const [paidBy, setPaidBy] = useState(expense.paidBy)
   const [to, setTo] = useState(expense.to ?? '')
   const [date, setDate] = useState(expense.date)
-  const [forPerson, setForPerson] = useState(expense.forPerson ?? '')
+  const [category, setCategory] = useState(categoryOf(expense).id)
   const cents = parseEuro(amount)
   const everyone = Array.from(new Set([...people, expense.paidBy, ...(expense.to ? [expense.to] : [])]))
   const name = (p: string) => (p === me ? 'Ich' : shortName(p))
@@ -232,7 +220,7 @@ function ExpenseEditor({ expense, people, me, onClose }: { expense: Expense; peo
   async function save(e: FormEvent) {
     e.preventDefault()
     if (!valid) return
-    await updateExpense(expense.id, { amount: cents, paidBy, date, ...(transfer ? { to } : { title: title.trim(), forPerson: forPerson || undefined }) })
+    await updateExpense(expense.id, { amount: cents, paidBy, date, ...(transfer ? { to } : { title: title.trim(), category }) })
     onClose()
   }
 
@@ -251,20 +239,15 @@ function ExpenseEditor({ expense, people, me, onClose }: { expense: Expense; peo
         <input type="date" value={date} onChange={(e) => setDate(e.target.value)} aria-label="Datum" className={`${softField} !w-auto`} />
       </div>
       <div className="flex flex-wrap items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
-        {transfer ? 'Von' : 'Bezahlt von'}
-        <select value={paidBy} onChange={(e) => setPaidBy(e.target.value)} aria-label={transfer ? 'Von' : 'Bezahlt von'} className={`${softField} !w-auto`}>
+        {(transfer || people.length > 1) && (transfer ? 'Von' : 'Bezahlt von')}
+        {(transfer || people.length > 1) && <select value={paidBy} onChange={(e) => setPaidBy(e.target.value)} aria-label={transfer ? 'Von' : 'Bezahlt von'} className={`${softField} !w-auto`}>
           {everyone.map((p) => (
             <option key={p} value={p}>
               {name(p)}
             </option>
           ))}
-        </select>
-        {!transfer && people.length > 1 && (
-          <>
-            für
-            <OwnerSelect value={forPerson} onChange={setForPerson} people={people} me={me} />
-          </>
-        )}
+        </select>}
+        {!transfer && <CategorySelect value={category} onChange={setCategory} />}
         {transfer && (
           <>
             an
@@ -280,5 +263,18 @@ function ExpenseEditor({ expense, people, me, onClose }: { expense: Expense; peo
       </div>
       <EditButtons onClose={onClose} disabled={!valid} />
     </form>
+  )
+}
+
+/** Kategorie einer Ausgabe */
+export function CategorySelect({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  return (
+    <select value={value} onChange={(e) => onChange(e.target.value)} aria-label="Kategorie" className={`${softField} !w-auto`}>
+      {EXPENSE_CATEGORIES.map((c) => (
+        <option key={c.id} value={c.id}>
+          {c.emoji} {c.label}
+        </option>
+      ))}
+    </select>
   )
 }

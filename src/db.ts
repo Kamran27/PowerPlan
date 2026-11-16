@@ -91,8 +91,10 @@ export interface Expense {
   paidBy: string
   /** Ausgleich: an wen das Geld ging (dann keine Ausgabe) */
   to?: string
-  /** Persönliche Ausgabe dieser Person (E-Mail). Fehlt = gemeinsam, wird geteilt */
+  /** Persönliche Ausgabe dieser Person (E-Mail). Fehlt = gemeinsam, wird geteilt (alt – neu: „Mein Budget“) */
   forPerson?: string
+  /** Kategorie (lebensmittel, haushalt …), siehe lib/budget.ts */
+  category?: string
   date: string
   createdAt: string
 }
@@ -102,7 +104,7 @@ export interface BudgetItem {
   id: string
   spaceId: string
   realmId: string
-  /** fix = Fixkosten · goal = Sparziel · limit = Monatsbudget einer Person (owner) */
+  /** fix = Fixkosten · goal = Sparziel · limit = Monatsbudget */
   kind: 'fix' | 'goal' | 'limit'
   title: string
   /** fix: Betrag pro Intervall · goal: Zielbetrag */
@@ -110,7 +112,10 @@ export interface BudgetItem {
   /** fix: monthly | quarterly | yearly */
   interval?: 'monthly' | 'quarterly' | 'yearly'
   /** fix/limit: gehört dieser Person (E-Mail). Fehlt bei fix = gemeinsam */
-  owner?: string
+  /** Persönlich für diese Person (E-Mail) – NICHT „owner“: das setzt Dexie Cloud selbst auf den Ersteller */
+  forPerson?: string
+  /** fix (gemeinsam): wer zahlt es (Dauerauftrag) – zählt im „Wer schuldet wem“. Fehlt = Gemeinschaftskonto */
+  paidBy?: string
   /** fix: fällig am X. des Monats */
   day?: number
   /** goal: schon gespart */

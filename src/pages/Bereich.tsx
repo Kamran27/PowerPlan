@@ -5,6 +5,7 @@ import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import MealPlanView from '../components/MealPlanView'
 import ExpensesPanel from '../components/ExpensesPanel'
 import BudgetPanel from '../components/BudgetPanel'
+import BudgetOverview from '../components/BudgetOverview'
 import Avatar from '../components/Avatar'
 import { Cat } from '../components/Cats'
 import RecipesPanel from '../components/RecipesPanel'
@@ -24,6 +25,7 @@ import {
   removeMember,
   renameSpace,
   shortName,
+  migratePersonalBudget,
   updateSpaceKind,
 } from '../lib/spaces'
 import { useMyEmail } from '../lib/useMe'
@@ -59,6 +61,14 @@ export default function Bereich() {
   const [filter, setFilter] = useState<'alle' | 'meine' | 'offen'>('offen')
   const navigate = useNavigate()
   const toast = useToast()
+
+  // Umzug: früher im Gemeinsamen als „nur ich“ markierte Budget-Einträge → „Mein Budget“ (privat)
+  useEffect(() => {
+    if (space?.kind !== 'budget' || !me) return
+    migratePersonalBudget(me).then((n) => {
+      if (n) toast(`👤 ${n} persönliche ${n === 1 ? 'Position' : 'Positionen'} nach „Mein Budget“ verschoben`)
+    })
+  }, [space?.kind, me, toast])
 
   // Einkaufslisten (mit Abteilungen) und einfache Listen (Packliste, Gäste …) getrennt
   const shopLists = (lists ?? []).filter((l) => !l.plain)
@@ -219,7 +229,8 @@ export default function Bereich() {
         </section>
       )}
 
-      {tab === 'kosten' && <ExpensesPanel space={space} people={people} me={me} />}
+      {tab === 'uebersicht' && <BudgetOverview space={space} people={people} me={me} />}
+      {tab === 'kosten' && <ExpensesPanel space={space} people={people} me={me} showStand={kind.id !== 'budget'} />}
       {tab === 'budget' && <BudgetPanel space={space} people={people} me={me} />}
 
       {tab === 'mitglieder' && (

@@ -6,7 +6,7 @@ import type { Repeat } from './repeat'
  */
 
 export type SpaceKind = 'haushalt' | 'reise' | 'budget' | 'event' | 'projekt' | 'haustier' | 'familie' | 'ideen' | 'frei'
-export type SpaceTab = 'aufgaben' | 'einkauf' | 'listen' | 'essen' | 'kosten' | 'budget' | 'mitglieder'
+export type SpaceTab = 'uebersicht' | 'aufgaben' | 'einkauf' | 'listen' | 'essen' | 'kosten' | 'budget' | 'mitglieder'
 
 export interface StarterList {
   title: string
@@ -31,6 +31,8 @@ export interface KindInfo {
   tabs: SpaceTab[]
   /** Beschriftung des Reiters „listen“ */
   listsLabel?: string
+  /** Eigene Beschriftungen einzelner Reiter */
+  tabLabels?: Partial<Record<SpaceTab, string>>
   /** Bereich mit Stichtag (Countdown im Kopf): Beschriftung, z. B. „Abreise“ */
   dateLabel?: string
   /** Zufallsauswahl „Was machen wir?“ in den Listen */
@@ -84,9 +86,10 @@ export const SPACE_KINDS: KindInfo[] = [
     id: 'budget',
     label: 'Budget',
     emoji: '💶',
-    desc: 'Fixkosten, Sparziele, Ausgaben teilen',
+    desc: 'Gemeinsame Kosten, wer schuldet wem, Sparziele',
     placeholder: 'Budget',
-    tabs: ['budget', 'kosten', 'aufgaben', 'mitglieder'],
+    tabs: ['uebersicht', 'kosten', 'budget', 'aufgaben', 'mitglieder'],
+    tabLabels: { kosten: '🧾 Ausgaben', budget: '📅 Fixkosten & Sparen' },
     lists: [],
     tasks: [
       { title: 'Kontoauszüge durchsehen', repeat: 'monthly' },
@@ -187,6 +190,7 @@ export function kindInfo(kind?: string): KindInfo {
 }
 
 export const TAB_LABELS: Record<SpaceTab, string> = {
+  uebersicht: '📊 Übersicht',
   aufgaben: '✅ Aufgaben',
   einkauf: '🛒 Einkauf',
   listen: '📋 Listen',
@@ -197,6 +201,7 @@ export const TAB_LABELS: Record<SpaceTab, string> = {
 }
 
 export function tabLabel(kind: KindInfo, tab: SpaceTab): string {
+  if (kind.tabLabels?.[tab]) return kind.tabLabels[tab]!
   return tab === 'listen' && kind.listsLabel ? kind.listsLabel : TAB_LABELS[tab]
 }
 

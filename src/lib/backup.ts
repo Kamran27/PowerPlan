@@ -241,6 +241,10 @@ export async function restoreBackup(b: Backup): Promise<RestoreResult> {
 
     // 6) Kosten teilen
     for (const e of b.expenses) {
+      if (e.spaceId === 'mein') {
+        await db.expenses.put(e) // „Mein Budget“ (privat)
+        continue
+      }
       const target = spaceMap.get(e.spaceId)
       if (!target) continue
       if (!target.recreated) await db.expenses.put({ ...e, realmId: target.realmId })
@@ -249,6 +253,10 @@ export async function restoreBackup(b: Backup): Promise<RestoreResult> {
 
     // 7) Budget: Fixkosten und Sparziele
     for (const x of b.budgetItems) {
+      if (x.spaceId === 'mein') {
+        await db.budgetItems.put(x) // „Mein Budget“ (privat)
+        continue
+      }
       const target = spaceMap.get(x.spaceId)
       if (!target) continue
       if (!target.recreated) await db.budgetItems.put({ ...x, realmId: target.realmId })

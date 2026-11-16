@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { balances, formatEuro, parseEuro, settle } from './expenses'
 import { countdownText, kindInfo, SPACE_KINDS } from './spaceKinds'
 import { focusRange } from './focusRange'
-import { fixTotals, goalPct, monthlyToReach, nextDue, perMonth, perPersonMonth } from './budget'
+import { byCategory, fixTotals, goalPct, guessExpenseCategory, monthlyToReach, nextDue, occurrences, perMonth, perPersonMonth } from './budget'
 
 const A = 'a@x.de'
 const B = 'b@x.de'
@@ -114,7 +114,7 @@ describe('Persönlich und gemeinsam', () => {
   it('Monat pro Person: Fixkosten und Ausgaben', () => {
     const r = perPersonMonth(
       [A, B],
-      [{ amount: 100000 }, { amount: 2000, owner: A }, { amount: 12000, interval: 'yearly', owner: B }],
+      [{ amount: 100000 }, { amount: 2000, forPerson: A }, { amount: 12000, interval: 'yearly', forPerson: B }],
       [
         { amount: 6000, date: '2026-11-03' },
         { amount: 1500, date: '2026-11-05', forPerson: B },
@@ -125,5 +125,36 @@ describe('Persönlich und gemeinsam', () => {
     )
     expect(r[0]).toEqual({ person: A, fix: 52000, fixOwn: 2000, spent: 3000, spentOwn: 0, total: 55000 })
     expect(r[1]).toEqual({ person: B, fix: 51000, fixOwn: 1000, spent: 4500, spentOwn: 1500, total: 55500 })
+  })
+})
+
+describe('Kategorien und Fixkosten im Stand', () => {
+  it('rät Kategorien', () => {
+    expect(guessExpenseCategory('Rewe Wocheneinkauf')).toBe('lebensmittel')
+    expect(guessExpenseCategory('Katzenstreu')).toBe('katzen')
+    expect(guessExpenseCategory('DM')).toBe('haushalt')
+    expect(guessExpenseCategory('Irgendwas')).toBe('sonstiges')
+  })
+  it('summiert pro Kategorie im Monat', () => {
+    const r = byCategory(
+      [
+        { amount: 3000, date: '2026-11-02', category: 'lebensmittel' },
+        { amount: 1000, date: '2026-11-03', category: 'lebensmittel' },
+        { amount: 500, date: '2026-11-03' },
+        { amount: 9000, date: '2026-10-03', category: 'freizeit' },
+        { amount: 700, date: '2026-11-04', to: A },
+      ],
+      '2026-11',
+    )
+    expect(r.map((x) => [x.category.id, x.amount])).toEqual([['lebensmittel', 4000], ['sonstiges', 500]])
+  })
+  it('zählt fällige Fixkosten seit Start', () => {
+    expect(occurrences('2026-11', 'monthly', '2026-11-16')).toBe(1)
+    expect(occurrences('2026-11', 'monthly', '2026-11-16', 20)).toBe(0)
+    expect(occurrences('2026-09', 'monthly', '2026-11-16', 3)).toBe(3)
+    expect(occurrences('2026-09', 'quarterly', '2026-11-16')).toBe(1)
+    expect(occurrences('2026-08', 'quarterly', '2026-11-16')).toBe(2)
+    expect(occurrences('2025-11', 'yearly', '2026-11-16')).toBe(2)
+    expect(occurrences('2026-12', 'monthly', '2026-11-16')).toBe(0)
   })
 })

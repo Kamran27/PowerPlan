@@ -36,3 +36,25 @@ export function OwnerBadge({ owner, me }: { owner?: string; me?: string }) {
     </span>
   )
 }
+
+/** Gemeinsame Fixkosten: wer zahlt sie (Dauerauftrag)? Leer = Gemeinschaftskonto */
+export function PayerSelect({ value, onChange, people, me }: { value: string; onChange: (v: string) => void; people: string[]; me?: string }) {
+  return (
+    <select value={value} onChange={(e) => onChange(e.target.value)} aria-label="Wer zahlt" title="Wer zahlt" className={`${softField} !w-auto`}>
+      <option value="">🏦 Gemeinschaftskonto</option>
+      {people.map((p) => (
+        <option key={p} value={p}>
+          💳 zahlt {p === me ? 'ich' : shortName(p)}
+        </option>
+      ))}
+    </select>
+  )
+}
+
+export function PayerBadge({ payer, me }: { payer?: string; me?: string }) {
+  return (
+    <span className="ml-1.5 rounded-full bg-slate-100 px-1.5 py-0.5 text-[11px] font-medium text-slate-600 dark:bg-slate-800 dark:text-slate-300">
+      {payer ? `💳 ${payer === me ? 'ich' : shortName(payer)}` : '🏦 Konto'}
+    </span>
+  )
+}

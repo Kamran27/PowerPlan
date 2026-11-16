@@ -260,21 +260,28 @@ export async function clearDoneItems(list: ShoppingList) {
 
 /* ---------- Kosten teilen ---------- */
 
-export async function addExpense(space: Space, e: { title: string; amount: number; paidBy: string; to?: string; date?: string; forPerson?: string }) {
+/** Ohne Realm (z. B. „Mein Budget“) bleibt ein Eintrag privat – dann das Feld ganz weglassen */
+const realmOf = (space: Pick<Space, 'realmId'>) => (space.realmId ? { realmId: space.realmId } : {})
+
+export async function addExpense(
+  space: Pick<Space, 'id' | 'realmId'>,
+  e: { title: string; amount: number; paidBy: string; to?: string; date?: string; forPerson?: string; category?: string },
+) {
   await db.expenses.add({
     spaceId: space.id,
-    realmId: space.realmId,
+    ...realmOf(space),
     title: e.title.trim(),
     amount: e.amount,
     paidBy: e.paidBy,
     ...(e.to ? { to: e.to } : {}),
     ...(e.forPerson ? { forPerson: e.forPerson } : {}),
+    ...(e.category ? { category: e.category } : {}),
     date: e.date || todayISO(),
     createdAt: new Date().toISOString(),
   } as Expense)
 }
 
-export async function updateExpense(id: string, changes: Partial<Pick<Expense, 'title' | 'amount' | 'paidBy' | 'to' | 'date' | 'forPerson'>>) {
+export async function updateExpense(id: string, changes: Partial<Pick<Expense, 'title' | 'amount' | 'paidBy' | 'to' | 'date' | 'forPerson' | 'category'>>) {
   await db.expenses.update(id, changes)
 }
 
@@ -284,8 +291,37 @@ export async function deleteExpense(id: string) {
 
 /* ---------- Budget: Fixkosten und Sparziele ---------- */
 
-export async function addBudgetItem(space: Space, item: Omit<BudgetItem, 'id' | 'spaceId' | 'realmId' | 'createdAt'>) {
-  await db.budgetItems.add({ ...item, title: item.title.trim(), spaceId: space.id, realmId: space.realmId, createdAt: new Date().toISOString() } as BudgetItem)
+export async function addBudgetItem(space: Pick<Space, 'id' | 'realmId'>, item: Omit<BudgetItem, 'id' | 'spaceId' | 'realmId' | 'createdAt'>) {
+  await db.budgetItems.add({ ...item, title: item.title.trim(), spaceId: space.id, ...realmOf(space), createdAt: new Date().toISOString() } as BudgetItem)
+}
+
+/** „Mein Budget“: privater Pseudo-Bereich (kein Realm → nur ich sehe es) */
+export const PERSONAL_SPACE = { id: 'mein', realmId: '' } as const
+
+/**
+ * Umzug (einmalig, wiederholbar): Was im gemeinsamen Budget als „nur ich“ markiert war,
+ * wandert in „Mein Budget“ – Fixkosten/Monatsbudget mit forPerson = ich, Ausgaben für mich, die ich selbst bezahlt habe.
+ * Persönliche Ausgaben, die jemand anderes bezahlt hat, bleiben (sie sind eine Schuld im Gemeinsamen).
+ */
+export async function migratePersonalBudget(me?: string): Promise<number> {
+  if (!me) return 0
+  const items = await db.budgetItems.filter((i) => i.spaceId !== PERSONAL_SPACE.id && i.forPerson === me).toArray()
+  const exps = await db.expenses.filter((e) => e.spaceId !== PERSONAL_SPACE.id && e.forPerson === me && e.paidBy === me && !e.to).toArray()
+  if (!items.length && !exps.length) return 0
+  const hasLimit = (await db.budgetItems.filter((i) => i.spaceId === PERSONAL_SPACE.id && i.kind === 'limit').count()) > 0
+  for (const i of items) {
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { id, realmId, owner, forPerson, spaceId, ...rest } = i as BudgetItem & { owner?: string }
+    if (!(i.kind === 'limit' && hasLimit)) await db.budgetItems.add({ ...rest, spaceId: PERSONAL_SPACE.id } as BudgetItem)
+    await db.budgetItems.delete(i.id)
+  }
+  for (const e of exps) {
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { id, realmId, forPerson, spaceId, owner, ...rest } = e as Expense & { owner?: string }
+    await db.expenses.add({ ...rest, spaceId: PERSONAL_SPACE.id } as Expense)
+    await db.expenses.delete(e.id)
+  }
+  return items.length + exps.length
 }
 
 export async function updateBudgetItem(id: string, changes: Partial<Omit<BudgetItem, 'id' | 'spaceId' | 'realmId'>>) {
@@ -294,4 +330,12 @@ export async function updateBudgetItem(id: string, changes: Partial<Omit<BudgetI
 
 export async function deleteBudgetItem(id: string) {
   await db.budgetItems.delete(id)
+}
+
+/** Persönliche Fixkosten ins gemeinsame Budget verschieben – „zahlt ich“ (Dauerauftrag), Startmonat bleibt */
+export async function moveFixToShared(item: BudgetItem, target: Space, me: string) {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const { id, realmId, owner, forPerson, spaceId, ...rest } = item as BudgetItem & { owner?: string }
+  await db.budgetItems.add({ ...rest, spaceId: target.id, realmId: target.realmId, paidBy: me } as BudgetItem)
+  await db.budgetItems.delete(item.id)
 }
