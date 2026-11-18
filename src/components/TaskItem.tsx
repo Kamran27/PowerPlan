@@ -18,8 +18,9 @@ import { assignableEmails, makeRotation, shortName } from '../lib/spaces'
 import { useMyEmail } from '../lib/useMe'
 import { scheduleTaskToday, TASK_DRAG_TYPE } from '../lib/timeblocks'
 import { repeatLabel, type Repeat } from '../lib/repeat'
-import { DatePills, PriorityPills, RepeatPill, RotatePill, SelectPill, TimePill } from './TaskFields'
+import { AreaPills, DatePills, PriorityPills, RepeatPill, RotatePill, SelectPill, TimePill } from './TaskFields'
 import { softField } from '../lib/pillStyles'
+import { areaOf, type Area } from '../lib/area'
 import Avatar from './Avatar'
 import { floatPoints } from '../lib/celebrate'
 import { canGiveKudos, toggleKudos } from '../lib/kudos'
@@ -161,8 +162,13 @@ export default function TaskItem({ task, scheduledAt, goals = [], spaces = [], c
         {task.notes && !task.done && (
           <span className="mt-0.5 block truncate text-sm text-slate-500 dark:text-slate-400">{task.notes}</span>
         )}
-        {(due || task.priority !== 3 || scheduledAt || goal || space || task.repeat || progress) && !task.done && (
+        {(due || task.priority !== 3 || scheduledAt || goal || space || task.repeat || progress || areaOf(task) === 'arbeit') && !task.done && (
           <span className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-xs">
+            {areaOf(task) === 'arbeit' && (
+              <span className="flex items-center gap-1 rounded-full bg-sky-50 px-1.5 font-medium text-sky-700 ring-1 ring-sky-200 dark:bg-sky-500/10 dark:text-sky-300 dark:ring-sky-500/30">
+                💼 Arbeit
+              </span>
+            )}
             {task.priority !== 3 && (
               <span className="flex items-center gap-1 text-slate-500 dark:text-slate-400">
                 <span className={`size-2 rounded-full ${prio.dot}`} />
@@ -380,6 +386,7 @@ function TaskEditor({
   const [assignee, setAssignee] = useState(task.assignee ?? '')
   const [repeat, setRepeat] = useState<Repeat | ''>(task.repeat ?? '')
   const [rotate, setRotate] = useState(!!task.rotation?.length)
+  const [area, setArea] = useState<Area>(areaOf(task))
   const me = useMyEmail()
   // Mitglieder des Bereichs (nur bei gemeinsamen Aufgaben)
   const members = useLiveQuery(() => (space ? db.members.where('realmId').equals(space.realmId).toArray() : []), [space?.realmId]) ?? []
@@ -402,6 +409,7 @@ function TaskEditor({
         dueDate: dueDate || undefined,
         goalId,
         repeat: repeat || undefined,
+        ...(space ? {} : { area }),
         ...(space ? { assignee: (rotation ? rotation[0] : assignee) || undefined, rotation } : {}),
       },
       { start, end },
@@ -444,6 +452,7 @@ function TaskEditor({
 
         {/* Optionen als Pillen – wie bei „Neue Aufgabe“ */}
         <div className="flex flex-wrap items-center gap-1.5">
+          {!space && <AreaPills value={area} onChange={setArea} />}
           <PriorityPills value={priority} onChange={setPriority} />
           <DatePills value={dueDate} onChange={setDueDate} />
           <TimePill

@@ -1,4 +1,4 @@
-import { useMemo, useState, type FormEvent, type ReactNode } from 'react'
+import { useEffect, useMemo, useState, type FormEvent, type ReactNode } from 'react'
 import type { Space } from '../db'
 import { ArrowUp, Plus, Sparkles } from 'lucide-react'
 import { formatDayShort, todayISO } from '../lib/date'
@@ -8,9 +8,10 @@ import { makeRotation, shortName } from '../lib/spaces'
 import { addTask, PRIORITIES, type Priority } from '../lib/tasks'
 import { useMyEmail } from '../lib/useMe'
 import { useIsMobile } from '../lib/useIsMobile'
+import { lastArea, rememberArea, type Area } from '../lib/area'
 import { timeRangeError } from '../lib/time'
 import type { Repeat } from '../lib/repeat'
-import { DatePills, PriorityPills, RepeatPill, RotatePill, SelectPill, TimePill } from './TaskFields'
+import { AreaPills, DatePills, PriorityPills, RepeatPill, RotatePill, SelectPill, TimePill } from './TaskFields'
 
 interface Props {
   defaultDueDate?: string
@@ -22,10 +23,12 @@ interface Props {
   autoFocus?: boolean
   /** Nach dem Anlegen (z. B. Fenster schließen) */
   onAdded?: (title: string) => void
+  /** Vorauswahl Privat/Arbeit (z. B. aus dem Filter der Seite); sonst die zuletzt gewählte */
+  defaultArea?: Area
 }
 
 /** Schnelleingabe für neue Aufgaben: Titel, Priorität, Datum und Uhrzeit (Beginn – Ende) – optional mit Zuständigkeit. */
-export default function TaskInput({ defaultDueDate, space, people = [], autoFocus, onAdded }: Props) {
+export default function TaskInput({ defaultDueDate, space, people = [], autoFocus, onAdded, defaultArea }: Props) {
   const [title, setTitle] = useState('')
   const [priority, setPriority] = useState<Priority>(2)
   const [dueDate, setDueDate] = useState(defaultDueDate ?? '')
@@ -34,6 +37,11 @@ export default function TaskInput({ defaultDueDate, space, people = [], autoFocu
   const [assignee, setAssignee] = useState('')
   const [repeat, setRepeat] = useState<Repeat | ''>('')
   const [rotate, setRotate] = useState(false)
+  const [area, setArea] = useState<Area>(defaultArea ?? lastArea())
+  // Filter der Seite gewechselt → neue Aufgaben passend vorbelegen
+  useEffect(() => {
+    if (defaultArea) setArea(defaultArea)
+  }, [defaultArea])
   /** „Nicht erkennen“ gedrückt: Text bleibt wörtlich so, wie getippt */
   const [literal, setLiteral] = useState(false)
   const me = useMyEmail()
@@ -75,6 +83,7 @@ export default function TaskInput({ defaultDueDate, space, people = [], autoFocu
       start: p?.start ?? start,
       end: p?.start ? p.end : end,
       repeat: finalRepeat,
+      ...(space ? {} : { area }),
       ...(space ? { spaceId: space.id, realmId: space.realmId, assignee: finalAssignee || undefined, rotation } : {}),
     })
     onAdded?.(p ? p.title : title.trim())
@@ -146,6 +155,15 @@ export default function TaskInput({ defaultDueDate, space, people = [], autoFocu
 
       {/* Optionen als Pillen */}
       <div className="mt-2 flex flex-wrap items-center gap-1.5 border-t border-slate-100 px-1 pt-2 dark:border-slate-800">
+        {!space && (
+          <AreaPills
+            value={area}
+            onChange={(a) => {
+              setArea(a)
+              rememberArea(a)
+            }}
+          />
+        )}
         <PriorityPills value={priority} onChange={setPriority} />
         <DatePills value={dueDate} onChange={setDueDate} />
         <TimePill

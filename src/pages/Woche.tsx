@@ -3,6 +3,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import BlockEditor, { type BlockDraft } from '../components/BlockEditor'
 import DayColumn from '../components/DayColumn'
 import PageHeader from '../components/PageHeader'
+import { BlockLegend } from '../components/TimeBlockCard'
 import TaskList from '../components/TaskList'
 import { useToggleTask } from '../components/useToggleTask'
 import { db, type Task } from '../db'
@@ -104,8 +105,9 @@ export default function Woche() {
             Diese Woche
           </button>
         )}
-        <span className="ml-auto hidden text-xs text-slate-500 lg:inline dark:text-slate-400">
-          Klicken = neuer Block · Aufgabe in einen Tag ziehen = einplanen
+        <span className="ml-auto flex flex-col items-end gap-0.5">
+          <span className="hidden text-xs text-slate-500 lg:inline dark:text-slate-400">Klicken = neuer Block · Aufgabe in einen Tag ziehen = einplanen</span>
+          <BlockLegend />
         </span>
       </div>
 

@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { balances, formatEuro, parseEuro, settle } from './expenses'
 import { countdownText, kindInfo, SPACE_KINDS } from './spaceKinds'
 import { focusRange } from './focusRange'
+import { areaOf, matchesArea } from './area'
 import { byCategory, fixTotals, goalPct, guessExpenseCategory, monthlyToReach, nextDue, occurrences, perMonth, perPersonMonth } from './budget'
 
 const A = 'a@x.de'
@@ -156,5 +157,17 @@ describe('Kategorien und Fixkosten im Stand', () => {
     expect(occurrences('2026-08', 'quarterly', '2026-11-16')).toBe(2)
     expect(occurrences('2025-11', 'yearly', '2026-11-16')).toBe(2)
     expect(occurrences('2026-12', 'monthly', '2026-11-16')).toBe(0)
+  })
+})
+
+describe('Privat und Arbeit', () => {
+  it('ordnet zu und filtert', () => {
+    expect(areaOf({})).toBe('privat')
+    expect(areaOf({ area: 'arbeit' })).toBe('arbeit')
+    // Gemeinsame Aufgaben sind immer privat
+    expect(areaOf({ area: 'arbeit', spaceId: 's1' })).toBe('privat')
+    expect(matchesArea({ area: 'arbeit' }, 'privat')).toBe(false)
+    expect(matchesArea({}, 'privat')).toBe(true)
+    expect(matchesArea({ area: 'arbeit' }, 'alle')).toBe(true)
   })
 })

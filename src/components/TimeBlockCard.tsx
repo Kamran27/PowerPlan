@@ -4,6 +4,7 @@ import { clamp, DAY_START, fromMinutes, MAX_END, PX_PER_MIN, SNAP, snap, toMinut
 import { updateBlock } from '../lib/timeblocks'
 import { useToggleTask } from './useToggleTask'
 import { useFocus } from '../lib/focus'
+import { areaOf } from '../lib/area'
 
 interface Props {
   block: TimeBlock
@@ -19,6 +20,26 @@ interface DragState {
   start: number
   end: number
   moved: boolean
+}
+
+const PRIO_COLORS: Record<1 | 2 | 3, string> = {
+  1: 'bg-rose-50 border-rose-500 text-rose-950 dark:bg-rose-500/15 dark:text-rose-100',
+  2: 'bg-indigo-50 border-indigo-500 text-indigo-950 dark:bg-indigo-500/15 dark:text-indigo-100',
+  3: 'bg-slate-50 border-slate-400 text-slate-800 dark:bg-slate-500/15 dark:text-slate-200',
+}
+
+/** Kleine Farblegende für den Kalender */
+export function BlockLegend({ className = '' }: { className?: string }) {
+  const dot = 'inline-block size-2 rounded-full'
+  return (
+    <span className={`flex flex-wrap items-center gap-x-2.5 gap-y-0.5 text-[11px] text-slate-500 dark:text-slate-400 ${className}`}>
+      <span className="flex items-center gap-1"><span className={`${dot} bg-rose-500`} />Hoch</span>
+      <span className="flex items-center gap-1"><span className={`${dot} bg-indigo-500`} />Mittel</span>
+      <span className="flex items-center gap-1"><span className={`${dot} bg-slate-400`} />Niedrig</span>
+      <span className="flex items-center gap-1"><span className={`${dot} bg-emerald-500`} />Termin</span>
+      <span>💼 Arbeit</span>
+    </span>
+  )
 }
 
 /** Ein Zeitblock: Ziehen verschiebt, unterer Rand ändert die Länge, Klick öffnet den Editor. */
@@ -73,11 +94,16 @@ export default function TimeBlockCard({ block, task, lane, lanes, onOpen }: Prop
 
   // Läuft gerade der Fokus-Timer für diesen Block? → bernsteinfarben mit ⏱️ (der Block wächst mit)
   const focusing = !!focus?.block && focus.block.id === block.id
+  // Farbe: Fokus läuft → bernstein · Aufgabe → nach Priorität (hoch rot, mittel violett, niedrig grau) · freier Termin → grün
   const color = focusing
     ? 'bg-amber-50 border-amber-500 text-amber-950 dark:bg-amber-500/15 dark:text-amber-100'
-    : block.taskId
-    ? 'bg-indigo-50 border-indigo-500 text-indigo-950 dark:bg-indigo-500/15 dark:text-indigo-100'
-    : 'bg-emerald-50 border-emerald-500 text-emerald-950 dark:bg-emerald-500/15 dark:text-emerald-100'
+    : task
+      ? PRIO_COLORS[task.priority]
+      : block.taskId
+        ? PRIO_COLORS[2]
+        : 'bg-emerald-50 border-emerald-500 text-emerald-950 dark:bg-emerald-500/15 dark:text-emerald-100'
+  const high = task?.priority === 1 && !done
+  const work = task && areaOf(task) === 'arbeit'
 
   return (
     <div
@@ -116,6 +142,12 @@ export default function TimeBlockCard({ block, task, lane, lanes, onOpen }: Prop
         <div className="min-w-0 flex-1">
           <div className={`truncate font-medium ${done ? 'line-through' : ''}`}>
             {focusing && <span aria-label="Fokus läuft">⏱️ </span>}
+            {high && (
+              <span aria-label="Hohe Priorität" className="mr-1 rounded bg-rose-500 px-1 text-[10px] font-bold text-white">
+                !
+              </span>
+            )}
+            {work && <span aria-label="Arbeit">💼 </span>}
             {title}
           </div>
           {!compact && (

@@ -34,6 +34,8 @@ export async function addTask(input: {
   repeat?: Repeat
   /** Haushalts-Rotation: Reihenfolge der E-Mails (nur gemeinsam + wiederkehrend) */
   rotation?: string[]
+  /** Arbeit oder privat (fehlt = privat) */
+  area?: 'arbeit' | 'privat'
 }) {
   const title = input.title.trim()
   if (!title) return
@@ -52,6 +54,7 @@ export async function addTask(input: {
       ...(input.spaceId ? { spaceId: input.spaceId, realmId: input.realmId } : {}),
       ...(input.assignee ? { assignee: input.assignee } : {}),
       ...(input.repeat ? { repeat: input.repeat } : {}),
+      ...(input.area === 'arbeit' && !input.spaceId ? { area: 'arbeit' } : {}),
       ...(input.repeat && input.spaceId && input.rotation?.length ? { rotation: input.rotation } : {}),
     } as Task)
     if (input.start && dueDate) {
@@ -111,6 +114,7 @@ export async function toggleTask(task: Task): Promise<{ nextDue?: string; nextAs
       ...(task.spaceId ? { spaceId: task.spaceId, realmId: task.realmId } : {}),
       ...(nextAssignee ? { assignee: nextAssignee } : {}),
       ...(task.rotation?.length ? { rotation: task.rotation } : {}),
+      ...(task.area ? { area: task.area } : {}),
     } as Task)
     // Uhrzeit mitnehmen: Block am Fälligkeitstag → gleicher Block am neuen Termin
     const block = (await db.timeBlocks.where('taskId').equals(task.id).toArray()).find((b) => b.date === due)
@@ -194,7 +198,7 @@ export async function findTaskBlock(task: Task): Promise<TimeBlock | undefined> 
  */
 export async function saveTaskWithTime(
   task: Task,
-  changes: { title: string; notes?: string; priority: Priority; dueDate?: string; goalId?: string; assignee?: string; repeat?: Repeat; rotation?: string[] },
+  changes: { title: string; notes?: string; priority: Priority; dueDate?: string; goalId?: string; assignee?: string; repeat?: Repeat; rotation?: string[]; area?: 'arbeit' | 'privat' },
   time: { start: string; end: string },
   block?: TimeBlock,
 ) {

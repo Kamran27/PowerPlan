@@ -12,6 +12,9 @@ import { isDueOn } from '../lib/habits'
 import DayReview from '../components/DayReview'
 import DayTimeline from '../components/DayTimeline'
 import HabitsToday from '../components/HabitsToday'
+import { AreaFilterPills } from '../components/TaskFields'
+import { BlockLegend } from '../components/TimeBlockCard'
+import { matchesArea, useAreaFilter } from '../lib/area'
 import PageHeader from '../components/PageHeader'
 import TaskInput from '../components/TaskInput'
 import TaskList from '../components/TaskList'
@@ -61,6 +64,7 @@ export default function Heute() {
   // Meine Sicht: private + gemeinsame Aufgaben, die mir oder allen zugewiesen sind
   const myTasks = useMemo(() => (allTasks ?? []).filter((t) => visibleForMe(t, me)), [allTasks, me])
   const list = myTasks.filter((t) => isRelevantToday(t, today)).sort(compareTasks)
+  const [area, setArea] = useAreaFilter('heute')
   const doneTasks = list.filter((t) => t.done)
   const openTasks = list.filter((t) => !t.done)
   const total = list.length
@@ -158,12 +162,12 @@ export default function Heute() {
       </section>
 
       <div className="mb-6 grid gap-6 md:grid-cols-2">
-        <section>
+        <section className="rounded-2xl bg-white p-4 shadow-sm ring-1 ring-slate-200 dark:bg-slate-900 dark:ring-slate-800">
           <h2 className="mb-2 font-semibold">Wochenfokus</h2>
           <WeekFocus week={weekStart(today)} compact />
         </section>
         {habitsLoaded && (
-          <section>
+          <section className="rounded-2xl bg-white p-4 shadow-sm ring-1 ring-slate-200 dark:bg-slate-900 dark:ring-slate-800">
             <HabitsToday habits={habits!} doneByHabit={doneByHabit} today={today} />
           </section>
         )}
@@ -171,15 +175,18 @@ export default function Heute() {
 
       <div className="grid gap-6 lg:grid-cols-2 lg:items-start">
         <section>
-          <h2 className="mb-2 font-semibold">Heute zu tun</h2>
-          <TaskInput defaultDueDate={today} />
+          <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+            <h2 className="font-semibold">Heute zu tun</h2>
+            <AreaFilterPills value={area} onChange={setArea} />
+          </div>
+          <TaskInput defaultDueDate={today} defaultArea={area === 'alle' ? undefined : area} />
           <p className="mt-2 px-1 text-xs text-slate-500 dark:text-slate-400">
             Tipp: Aufgabe in den Tagesplan ziehen (am Handy: lange drücken) oder auf den Kalender-Knopf tippen.
           </p>
           <div className="mt-1">
             {allTasks ? (
               <TaskList
-                tasks={list}
+                tasks={list.filter((t) => matchesArea(t, area))}
                 scheduled={scheduled}
                 empty="Nichts fällig. Füge oben eine Aufgabe für heute hinzu."
               />
@@ -197,6 +204,7 @@ export default function Heute() {
             <h2 className="font-semibold">Tagesplan</h2>
             <span className="text-xs text-slate-500 dark:text-slate-400">Klicken = neuer Block</span>
           </div>
+          <BlockLegend className="mb-2" />
           {blocks && <DayTimeline date={today} blocks={blocks} tasks={tasksById} />}
         </section>
       </div>

@@ -10,6 +10,8 @@ import { visibleForMe } from '../lib/spaces'
 import { useMyEmail } from '../lib/useMe'
 import { useScheduledTimes } from '../lib/useDayBlocks'
 import Skeleton from '../components/Skeleton'
+import { AreaFilterPills } from '../components/TaskFields'
+import { matchesArea, useAreaFilter } from '../lib/area'
 
 type Filter = 'offen' | 'heute' | 'erledigt' | 'alle'
 
@@ -22,6 +24,7 @@ const FILTERS: { value: Filter; label: string; empty: string; test: (t: Task, to
 
 export default function Aufgaben() {
   const [filter, setFilter] = useState<Filter>('offen')
+  const [area, setArea] = useAreaFilter('aufgaben')
   const me = useMyEmail()
   const allTasks = useLiveQuery(() => db.tasks.toArray(), [])
   const tasks = useMemo(() => allTasks?.filter((t) => visibleForMe(t, me)), [allTasks, me])
@@ -29,14 +32,15 @@ export default function Aufgaben() {
   const scheduled = useScheduledTimes(today)
 
   const active = FILTERS.find((f) => f.value === filter)!
-  const visible = (tasks ?? []).filter((t) => active.test(t, today)).sort(compareTasks)
+  const visible = (tasks ?? []).filter((t) => active.test(t, today) && matchesArea(t, area)).sort(compareTasks)
   const openCount = (tasks ?? []).filter((t) => !t.done).length
 
   return (
     <div className="max-w-3xl">
       <PageHeader title="Aufgaben" subtitle={tasks ? `${openCount} offen` : ' '} cat="sleeping" />
-      <TaskInput />
-      <div role="tablist" className="mt-6 mb-2 flex gap-1 overflow-x-auto">
+      <TaskInput defaultArea={area === 'alle' ? undefined : area} />
+      <div className="mt-6 mb-2 flex flex-wrap items-center justify-between gap-2">
+      <div role="tablist" className="flex gap-1 overflow-x-auto">
         {FILTERS.map((f) => (
           <button
             key={f.value}
@@ -52,6 +56,8 @@ export default function Aufgaben() {
             {f.label}
           </button>
         ))}
+      </div>
+      <AreaFilterPills value={area} onChange={setArea} />
       </div>
       {tasks ? <TaskList tasks={visible} scheduled={scheduled} empty={active.empty} /> : <Skeleton rows={5} />}
     </div>

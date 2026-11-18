@@ -5,6 +5,7 @@ import { PRIORITIES, type Priority } from '../lib/tasks'
 import type { Repeat } from '../lib/repeat'
 import RepeatSelect from './RepeatSelect'
 import TimeRangeInput from './TimeRangeInput'
+import { AREAS, type Area, type AreaFilter } from '../lib/area'
 import { bareSelect, pill, pillActive } from '../lib/pillStyles'
 
 /*
@@ -152,5 +153,55 @@ export function RotatePill({ checked, onChange }: { checked: boolean; onChange: 
       <input type="checkbox" checked={checked} onChange={(e) => onChange(e.target.checked)} className="size-3.5 accent-indigo-600" />
       🔄 Abwechselnd
     </label>
+  )
+}
+
+/** Privat oder Arbeit */
+export function AreaPills({ value, onChange }: { value: Area; onChange: (a: Area) => void }) {
+  return (
+    <div role="radiogroup" aria-label="Bereich" className="flex rounded-full bg-slate-100 p-0.5 dark:bg-slate-800">
+      {AREAS.map((a) => (
+        <button
+          key={a.value}
+          type="button"
+          role="radio"
+          aria-checked={value === a.value}
+          onClick={() => onChange(a.value)}
+          className={`flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-medium transition ${
+            value === a.value
+              ? a.value === 'arbeit'
+                ? 'bg-sky-600 text-white shadow-sm'
+                : 'bg-white text-slate-900 shadow-sm dark:bg-slate-700 dark:text-white'
+              : 'text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200'
+          }`}
+        >
+          <span aria-hidden>{a.emoji}</span>
+          {a.label}
+        </button>
+      ))}
+    </div>
+  )
+}
+
+/** Filter: Alle · Privat · Arbeit */
+export function AreaFilterPills({ value, onChange }: { value: AreaFilter; onChange: (f: AreaFilter) => void }) {
+  const opts: { value: AreaFilter; label: string }[] = [{ value: 'alle', label: 'Alle' }, ...AREAS.map((a) => ({ value: a.value as AreaFilter, label: `${a.emoji} ${a.label}` }))]
+  return (
+    <div role="radiogroup" aria-label="Privat oder Arbeit anzeigen" className="flex rounded-full bg-slate-100 p-0.5 text-xs dark:bg-slate-800">
+      {opts.map((o) => (
+        <button
+          key={o.value}
+          type="button"
+          role="radio"
+          aria-checked={value === o.value}
+          onClick={() => onChange(o.value)}
+          className={`rounded-full px-2.5 py-1 font-medium transition ${
+            value === o.value ? 'bg-white text-slate-900 shadow-sm dark:bg-slate-700 dark:text-white' : 'text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200'
+          }`}
+        >
+          {o.label}
+        </button>
+      ))}
+    </div>
   )
 }

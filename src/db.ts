@@ -46,6 +46,8 @@ export interface Task {
   subtasks?: Subtask[]
   /** 👏 „Gut gemacht“ – E-Mails der Personen, die die erledigte Aufgabe gefeiert haben */
   kudos?: string[]
+  /** Lebensbereich: Arbeit oder privat (fehlt = privat) */
+  area?: 'arbeit' | 'privat'
 }
 
 /** Ein Punkt der Checkliste in einer Aufgabe. */
