@@ -39,9 +39,9 @@ export default function DayReview({ date, points, doneTasks, openTasks }: Props)
     return (
       <button
         onClick={() => setExpanded(true)}
-        className="w-full rounded-2xl border border-dashed border-slate-300 p-4 text-sm text-slate-500 hover:bg-slate-100/60 dark:border-slate-700 dark:text-slate-400 dark:hover:bg-slate-800/40"
+        className="px-1 text-xs text-slate-500 hover:text-indigo-600 hover:underline dark:text-slate-400"
       >
-        🌙 Tagesbilanz – erscheint ab {REVIEW_HOUR} Uhr, oder jetzt öffnen
+        🌙 Tagesbilanz jetzt öffnen (kommt sonst ab {REVIEW_HOUR} Uhr)
       </button>
     )
   }

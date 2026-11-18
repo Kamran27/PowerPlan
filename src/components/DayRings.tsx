@@ -15,13 +15,16 @@ export interface Ring {
   dot: string
 }
 
-const SIZE = 128
-const WIDTH = 11
-const GAP = 3
+const BIG = 128
+const BIG_WIDTH = 11
+const BIG_GAP = 3
 
-export default function DayRings({ rings }: { rings: Ring[] }) {
+export default function DayRings({ rings, small }: { rings: Ring[]; /** kompakt: kleine Ringe, Legende in einer Zeile */ small?: boolean }) {
+  const SIZE = small ? 52 : BIG
+  const WIDTH = small ? 6 : BIG_WIDTH
+  const GAP = small ? 2 : BIG_GAP
   return (
-    <div className="flex items-center gap-5">
+    <div className={`flex items-center ${small ? 'gap-3' : 'gap-5'}`}>
       <svg
         width={SIZE}
         height={SIZE}
@@ -53,7 +56,7 @@ export default function DayRings({ rings }: { rings: Ring[] }) {
           )
         })}
       </svg>
-      <ul className="grid gap-1.5 text-sm">
+      <ul className={small ? 'flex flex-wrap gap-x-3 gap-y-1 text-xs' : 'grid gap-1.5 text-sm'}>
         {rings.map((r) => (
           <li key={r.label} className="flex items-center gap-2">
             <span className={`size-2.5 rounded-full ${r.dot}`} aria-hidden />

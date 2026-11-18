@@ -7,14 +7,17 @@ interface Props {
   habits: Habit[]
   doneByHabit: Map<string, Set<string>>
   today: string
+  /** eine Zeile mit kleinem Titel links (Heute-Karte „Dein Tag“) */
+  inline?: boolean
 }
 
 /** Die heute fälligen Gewohnheiten als kompakte Abhak-Liste für die Heute-Seite. */
-export default function HabitsToday({ habits, doneByHabit, today }: Props) {
+export default function HabitsToday({ habits, doneByHabit, today, inline }: Props) {
   const toggle = useToggleHabit()
   const dueToday = habits.filter((h) => isDueOn(h, today))
   const doneCount = dueToday.filter((h) => doneByHabit.get(h.id)?.has(today)).length
 
+  if (inline && dueToday.length === 0) return null
   if (habits.length === 0) {
     return (
       <p className="text-sm text-slate-500 dark:text-slate-400">
@@ -36,13 +39,19 @@ export default function HabitsToday({ habits, doneByHabit, today }: Props) {
   }
 
   return (
-    <div>
-      <div className="mb-2 flex items-baseline justify-between">
-        <h2 className="font-semibold">Gewohnheiten</h2>
-        <span className="text-xs text-slate-500 dark:text-slate-400">
-          {doneCount} von {dueToday.length}
-        </span>
-      </div>
+    <div className={inline ? 'flex items-start gap-3' : ''}>
+      {inline ? (
+        <Link to="/gewohnheiten" className="w-20 shrink-0 pt-1 text-xs font-medium text-slate-500 hover:text-indigo-600 dark:text-slate-400">
+          Routinen <span className="tabular-nums">{doneCount}/{dueToday.length}</span>
+        </Link>
+      ) : (
+        <div className="mb-2 flex items-baseline justify-between">
+          <h2 className="font-semibold">Gewohnheiten</h2>
+          <span className="text-xs text-slate-500 dark:text-slate-400">
+            {doneCount} von {dueToday.length}
+          </span>
+        </div>
+      )}
       <ul className="flex flex-wrap gap-1.5">
         {dueToday.map((h) => {
           const done = doneByHabit.get(h.id) ?? new Set<string>()

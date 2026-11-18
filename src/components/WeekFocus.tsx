@@ -10,10 +10,12 @@ interface Props {
   week: string
   /** compact = nur anzeigen und abhaken (Heute-Seite), sonst bearbeitbar (Ziele-Seite) */
   compact?: boolean
+  /** eine Zeile mit kleinem Titel links (Heute-Karte „Dein Tag“) */
+  inline?: boolean
 }
 
 /** Wochenfokus: drei Prioritäten der Woche, abhakbar und optional mit einem Monatsziel verknüpft. */
-export default function WeekFocus({ week, compact }: Props) {
+export default function WeekFocus({ week, compact, inline }: Props) {
   const items = useLiveQuery(() => db.weekFocus.where('week').equals(week).toArray(), [week])
   const goals = useLiveQuery(() => db.goals.toArray(), [])
   const toast = useToast()
@@ -24,6 +26,37 @@ export default function WeekFocus({ week, compact }: Props) {
 
   async function toggle(item: FocusItem) {
     if (await toggleFocus(item)) toast(`+${FOCUS_POINTS} Punkte – Fokus erledigt! 🎯`)
+  }
+
+  if (inline) {
+    return (
+      <div className="flex items-start gap-3">
+        <Link to="/ziele" className="w-20 shrink-0 pt-1 text-xs font-medium text-slate-500 hover:text-indigo-600 dark:text-slate-400">
+          Woche
+        </Link>
+        {items.length === 0 ? (
+          <Link to="/ziele" className="pt-1 text-xs text-indigo-600 hover:underline dark:text-indigo-400">
+            Top 3 der Woche festlegen →
+          </Link>
+        ) : (
+          <ul className="flex flex-wrap gap-1.5">
+            {[...items].sort((a, b) => a.slot - b.slot).map((f) => (
+              <li key={f.id}>
+                <label
+                  className={`flex cursor-pointer items-center gap-1.5 rounded-full py-1 pr-2.5 pl-2 text-xs ring-1 transition ${
+                    f.doneAt ? 'bg-slate-50 text-slate-400 ring-slate-200 dark:bg-slate-800/50 dark:ring-slate-700' : 'ring-slate-200 hover:ring-indigo-400 dark:ring-slate-700'
+                  }`}
+                  title={f.goalId && goalById.get(f.goalId) ? `🎯 ${goalById.get(f.goalId)!.title}` : undefined}
+                >
+                  <input type="checkbox" checked={!!f.doneAt} onChange={() => toggle(f)} className="size-3.5 accent-indigo-600" />
+                  <span className={f.doneAt ? 'line-through' : ''}>{f.title}</span>
+                </label>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+    )
   }
 
   if (compact) {

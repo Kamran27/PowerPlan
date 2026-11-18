@@ -2,7 +2,7 @@ import { useLiveQuery } from 'dexie-react-hooks'
 import { useEffect, useMemo } from 'react'
 import TapCat from '../components/TapCat'
 import { celebrateOnce, pawConfetti } from '../lib/celebrate'
-import { Flame, Shield, ShieldCheck, Star, Trophy, UtensilsCrossed } from 'lucide-react'
+import { Flame, Shield, Star, Trophy, UtensilsCrossed } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import DayRings, { type Ring } from '../components/DayRings'
 import NextUp from '../components/NextUp'
@@ -113,65 +113,45 @@ export default function Heute() {
       <MorningBrief today={today} open={openTasks} blocks={blocks ?? []} habitsDue={habitsDue.length} meals={todaysMeals ?? []} />
       {blocks && <NextUp blocks={blocks} tasks={tasksById} />}
 
-      <section className="relative mt-8 mb-6 rounded-3xl bg-white p-5 shadow-sm ring-1 ring-slate-200 md:p-6 dark:bg-slate-900 dark:ring-slate-800">
+      {/* Dein Tag: Stand, Wochenfokus und Routinen in einer schlanken Karte */}
+      <section className="relative mt-8 mb-6 grid gap-3 rounded-2xl bg-white p-4 shadow-sm ring-1 ring-slate-200 dark:bg-slate-900 dark:ring-slate-800">
         {/* Katze schaut über den Rand */}
         <TapCat className="absolute -top-[25px] right-8 text-slate-400 dark:text-slate-500" />
-        <div className="flex flex-wrap items-center justify-between gap-4">
-          <DayRings rings={rings} />
-          {allRingsClosed && (
-            <p className="rounded-xl bg-emerald-50 px-3 py-2 text-sm font-medium text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-300">
-              Alle Ringe geschlossen – starker Tag! 🐾
-            </p>
-          )}
+        <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
+          <DayRings rings={rings} small />
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-slate-600 dark:text-slate-300">
+            <span className="flex items-center gap-1" title="Punkte heute">
+              <Trophy aria-hidden className="size-3.5 text-amber-500" /> <strong className="tabular-nums">{pointsToday}</strong> Pkt.
+            </span>
+            <span
+              className="flex items-center gap-1"
+              title={`Streak · Bester: ${streak.best} ${streak.best === 1 ? 'Tag' : 'Tage'} · ${
+                streak.shieldLeftThisWeek ? 'Schutz bereit (1 Tag pro Woche darf ausfallen)' : 'Schutz diese Woche genutzt'
+              }`}
+            >
+              <Flame aria-hidden className="size-3.5 text-orange-500" /> <strong className="tabular-nums">{streak.current}</strong>
+              {streak.shieldLeftThisWeek && <Shield aria-label="Schutz bereit" className="size-3 text-sky-500" />}
+            </span>
+            <span className="flex items-center gap-1" title={`Noch ${game.level.needed - game.level.into} Punkte bis Level ${game.level.level + 1}`}>
+              <Star aria-hidden className="size-3.5 text-indigo-500" /> Lvl <strong className="tabular-nums">{game.level.level}</strong>
+            </span>
+            {todaysMeals && todaysMeals.length > 0 && (
+              <span className="flex items-center gap-1" title="Aus dem Essensplan eurer gemeinsamen Bereiche">
+                <UtensilsCrossed aria-hidden className="size-3.5 text-slate-500" /> {todaysMeals.map((m) => m.title).join(', ')}
+              </span>
+            )}
+          </div>
         </div>
-        <div className="mt-5 flex flex-wrap items-center gap-x-5 gap-y-2 border-t border-slate-100 pt-4 text-sm dark:border-slate-800">
-          <span className="flex items-center gap-1.5">
-            <Trophy aria-hidden className="size-4 text-amber-500" /> <strong className="tabular-nums">{pointsToday}</strong> Punkte heute
-          </span>
-          <span className="flex items-center gap-1.5" title={`Bester Streak: ${streak.best} ${streak.best === 1 ? 'Tag' : 'Tage'}`}>
-            {/* Flamme wächst mit dem Streak */}
-            <Flame
-              aria-hidden
-              className={`text-orange-500 transition-transform ${streak.current >= 7 ? 'fill-orange-400/40' : ''}`}
-              style={{ width: 16, height: 16, transform: `scale(${Math.min(1.6, 1 + streak.current * 0.06)})` }}
-            />{' '}
-            <strong className="tabular-nums">{streak.current}</strong> {streak.current === 1 ? 'Tag' : 'Tage'} Streak
-          </span>
-          <span
-            className={`flex items-center gap-1 text-xs ${streak.shieldLeftThisWeek ? 'text-sky-600 dark:text-sky-400' : 'text-slate-400'}`}
-            title="Streak-Schutz: Pro Woche darf ein Tag ausfallen, ohne dass dein Streak reißt."
-          >
-            {streak.shieldLeftThisWeek ? <Shield aria-hidden className="size-3.5" /> : <ShieldCheck aria-hidden className="size-3.5" />}
-            {streak.shieldLeftThisWeek ? 'Schutz bereit' : 'Schutz genutzt'}
-          </span>
-          <span className="flex items-center gap-1.5" title={`Noch ${game.level.needed - game.level.into} Punkte bis Level ${game.level.level + 1}`}>
-            <Star aria-hidden className="size-4 text-indigo-500" /> Level <strong className="tabular-nums">{game.level.level}</strong>{' '}
-            <span className="text-slate-500 dark:text-slate-400">({game.level.pct} %)</span>
-          </span>
-          {todaysMeals && todaysMeals.length > 0 && (
-            <span className="flex items-center gap-1.5" title="Aus dem Essensplan eurer gemeinsamen Bereiche">
-              <UtensilsCrossed aria-hidden className="size-4 text-slate-500" /> {todaysMeals.map((m) => m.title).join(', ')}
-            </span>
-          )}
-          {allDoneToday && (
-            <span className="font-medium text-emerald-600 dark:text-emerald-400">
-              Alles erledigt – der Tag zählt für deinen Streak!
-            </span>
-          )}
+        {(allRingsClosed || allDoneToday) && (
+          <p className="rounded-xl bg-emerald-50 px-3 py-1.5 text-xs font-medium text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-300">
+            {allRingsClosed ? 'Alle Ringe geschlossen – starker Tag! 🐾' : 'Alles erledigt – der Tag zählt für deinen Streak!'}
+          </p>
+        )}
+        <div className="grid gap-2 border-t border-slate-100 pt-3 dark:border-slate-800">
+          <WeekFocus week={weekStart(today)} inline />
+          {habitsLoaded && <HabitsToday habits={habits!} doneByHabit={doneByHabit} today={today} inline />}
         </div>
       </section>
-
-      <div className="mb-6 grid gap-6 md:grid-cols-2">
-        <section className="rounded-2xl bg-white p-4 shadow-sm ring-1 ring-slate-200 dark:bg-slate-900 dark:ring-slate-800">
-          <h2 className="mb-2 font-semibold">Wochenfokus</h2>
-          <WeekFocus week={weekStart(today)} compact />
-        </section>
-        {habitsLoaded && (
-          <section className="rounded-2xl bg-white p-4 shadow-sm ring-1 ring-slate-200 dark:bg-slate-900 dark:ring-slate-800">
-            <HabitsToday habits={habits!} doneByHabit={doneByHabit} today={today} />
-          </section>
-        )}
-      </div>
 
       <div className="grid gap-6 lg:grid-cols-2 lg:items-start">
         <section>
@@ -180,9 +160,6 @@ export default function Heute() {
             <AreaFilterPills value={area} onChange={setArea} />
           </div>
           <TaskInput defaultDueDate={today} defaultArea={area === 'alle' ? undefined : area} />
-          <p className="mt-2 px-1 text-xs text-slate-500 dark:text-slate-400">
-            Tipp: Aufgabe in den Tagesplan ziehen (am Handy: lange drücken) oder auf den Kalender-Knopf tippen.
-          </p>
           <div className="mt-1">
             {allTasks ? (
               <TaskList
@@ -194,7 +171,7 @@ export default function Heute() {
               <Skeleton rows={4} />
             )}
           </div>
-          <div className="mt-6 mb-10">
+          <div className="mt-4 mb-10">
             {allTasks && <DayReview date={today} points={pointsToday} doneTasks={doneTasks} openTasks={openTasks} />}
           </div>
         </section>
@@ -202,7 +179,9 @@ export default function Heute() {
         <section className="lg:sticky lg:top-6">
           <div className="mb-2 flex items-baseline justify-between">
             <h2 className="font-semibold">Tagesplan</h2>
-            <span className="text-xs text-slate-500 dark:text-slate-400">Klicken = neuer Block</span>
+            <span className="text-xs text-slate-500 dark:text-slate-400" title="Aufgaben hierher ziehen (am Handy: lange drücken) oder auf den Kalender-Knopf einer Aufgabe tippen">
+              Klicken = neuer Block · Aufgaben hierher ziehen
+            </span>
           </div>
           <BlockLegend className="mb-2" />
           {blocks && <DayTimeline date={today} blocks={blocks} tasks={tasksById} />}
