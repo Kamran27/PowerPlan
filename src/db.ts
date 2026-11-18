@@ -10,8 +10,15 @@ import type { Repeat } from './lib/repeat'
  * damit Geräte offline Einträge anlegen können, ohne sich in die Quere zu kommen.
  */
 
-/** Adresse der Cloud-Datenbank (öffentlich – kein Geheimnis). */
-export const CLOUD_DB_URL = 'https://zgoilsjd8.dexie.cloud'
+/** Adresse der echten Cloud-Datenbank (öffentlich – kein Geheimnis). */
+export const PROD_DB_URL = 'https://zgoilsjd8.dexie.cloud'
+
+/**
+ * Beim Entwickeln (npm run dev) kommt die Adresse der Test-Datenbank aus `.env.development`,
+ * damit Tests nie echte Daten verändern. Die veröffentlichte App nutzt immer die echte.
+ */
+export const CLOUD_DB_URL: string = import.meta.env.VITE_DEXIE_DB_URL || PROD_DB_URL
+export const IS_TEST_DB = CLOUD_DB_URL !== PROD_DB_URL
 
 /** Eine Aufgabe (To-do). Datumsangaben als ISO-String "JJJJ-MM-TT". */
 export interface Task {
@@ -260,7 +267,7 @@ export interface FocusItem {
   doneAt?: string
 }
 
-export const db = new Dexie('powerplan-cloud', { addons: [dexieCloud] }) as Dexie & {
+export const db = new Dexie(IS_TEST_DB ? 'powerplan-cloud-test' : 'powerplan-cloud', { addons: [dexieCloud] }) as Dexie & {
   tasks: EntityTable<Task, 'id'>
   timeBlocks: EntityTable<TimeBlock, 'id'>
   dayLogs: EntityTable<DayLog, 'id'>

@@ -26,3 +26,6 @@ dist-ssr
 # Dexie Cloud: Zugangsdaten der Datenbank – niemals committen!
 dexie-cloud.json
 *.key
+
+# Test-Datenbank fürs Entwickeln: Zugangsdaten nicht committen
+test-db/

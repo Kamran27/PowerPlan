@@ -18,6 +18,7 @@ import ReminderService from './components/ReminderService'
 import LoginDialog from './components/LoginDialog'
 import FocusBar from './components/FocusBar'
 import PushSync from './components/PushSync'
+import { IS_TEST_DB } from './db'
 import QuickAddFab from './components/QuickAddFab'
 import KudosNotifier from './components/KudosNotifier'
 import CatWalker from './components/CatWalker'
@@ -87,6 +88,11 @@ export default function App() {
       <QuickAddFab />
       <KudosNotifier />
       <CatWalker />
+      {IS_TEST_DB && (
+        <div className="pointer-events-none fixed top-2 left-1/2 z-50 -translate-x-1/2 rounded-full bg-amber-400 px-3 py-1 text-xs font-bold text-amber-950 shadow">
+          🧪 Test-Datenbank
+        </div>
+      )}
       <div className="min-h-dvh bg-slate-50 text-slate-900 dark:bg-slate-950 dark:text-slate-100 md:flex">
         {/* Seitenleiste (Desktop) / Leiste unten (Handy) */}
         <nav className="fixed inset-x-0 bottom-0 z-10 border-t border-slate-200 bg-white/90 backdrop-blur dark:border-slate-800 dark:bg-slate-900/90 md:static md:w-56 md:shrink-0 md:border-t-0 md:border-r">
