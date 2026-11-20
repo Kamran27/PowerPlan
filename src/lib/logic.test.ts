@@ -200,3 +200,35 @@ describe('Streak-Schutz', () => {
     expect(streaks(twice, '2026-11-13').current).toBe(2)
   })
 })
+
+describe('Fokus: Pause, Restzeit, Gesamtzeit, Sortierung', async () => {
+  const { remainingMs, workedMs, pausedMsOf, formatDuration } = await import('./focus')
+  const { compareTasks } = await import('./tasks')
+  const base = { title: 'X', startedAt: 1_000_000, minutes: 30 }
+
+  it('Restzeit nie größer als die Dauer (keine riesige Zahl beim Start)', () => {
+    expect(remainingMs(base, base.startedAt - 5 * 60_000)).toBe(30 * 60_000)
+    expect(remainingMs(base, base.startedAt + 10 * 60_000)).toBe(20 * 60_000)
+  })
+  it('Pause hält die Zeit an', () => {
+    const paused = { ...base, pausedAt: base.startedAt + 10 * 60_000 }
+    const later = base.startedAt + 25 * 60_000
+    expect(pausedMsOf(paused, later)).toBe(15 * 60_000)
+    expect(workedMs(paused, later)).toBe(10 * 60_000)
+    expect(remainingMs(paused, later)).toBe(20 * 60_000)
+    // fortgesetzt nach 15 Min. Pause, dann 5 Min. weiter
+    const resumed = { ...base, pausedMs: 15 * 60_000 }
+    expect(remainingMs(resumed, later + 5 * 60_000)).toBe(15 * 60_000)
+  })
+  it('Dauer lesbar', () => {
+    expect(formatDuration(45)).toBe('45 Min.')
+    expect(formatDuration(120)).toBe('2 Std.')
+    expect(formatDuration(135)).toBe('2 Std. 15 Min.')
+  })
+  it('Liste: nach Datum, am gleichen Tag nach Uhrzeit', () => {
+    const t = (id: string, dueDate?: string) => ({ id, title: id, dueDate, done: false, priority: 2, createdAt: '2026-01-01' }) as Task
+    const times = new Map([['b', '09:00'], ['c', '14:00']])
+    const sorted = [t('none'), t('c', '2026-11-20'), t('a', '2026-11-20'), t('b', '2026-11-20'), t('old', '2026-11-18')].sort((x, y) => compareTasks(x, y, times))
+    expect(sorted.map((x) => x.id)).toEqual(['old', 'b', 'c', 'a', 'none'])
+  })
+})

@@ -167,12 +167,16 @@ export async function restoreTask(task: Task) {
 }
 
 /** Offene zuerst; dann Fälligkeit (ohne Datum zuletzt), Priorität, Erstellzeit. Erledigte: zuletzt erledigt oben. */
-export function compareTasks(a: Task, b: Task): number {
+export function compareTasks(a: Task, b: Task, times?: Map<string, string>): number {
   if (a.done !== b.done) return a.done ? 1 : -1
   if (a.done && b.done) return (b.doneAt ?? '').localeCompare(a.doneAt ?? '')
   const ad = a.dueDate ?? '9999-12-31'
   const bd = b.dueDate ?? '9999-12-31'
   if (ad !== bd) return ad.localeCompare(bd)
+  // Gleicher Tag: mit Uhrzeit im Tagesplan zuerst, früh vor spät
+  const at = times?.get(a.id) ?? '99:99'
+  const bt = times?.get(b.id) ?? '99:99'
+  if (at !== bt) return at.localeCompare(bt)
   if (a.priority !== b.priority) return a.priority - b.priority
   return a.createdAt.localeCompare(b.createdAt)
 }

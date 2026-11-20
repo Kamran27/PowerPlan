@@ -29,7 +29,7 @@ import BottomSheet from './BottomSheet'
 import { haptic, useIsMobile } from '../lib/useIsMobile'
 import { SWIPE_THRESHOLD, useSwipe } from '../lib/useSwipe'
 import { addSubtask, deleteSubtask, subtaskProgress, toggleSubtask } from '../lib/subtasks'
-import { startFocus, stopFocus, useFocus } from '../lib/focus'
+import { formatDuration, startFocus, stopFocus, useFocus } from '../lib/focus'
 import { touchDragProps } from '../lib/touchDrag'
 import { useToggleTask } from './useToggleTask'
 import { useToast } from './Toast'
@@ -51,9 +51,11 @@ interface Props {
   spaces?: Space[]
   /** Schmale Liste (z. B. Wochenansicht): Knöpfe nur beim Darüberfahren, damit der Name Platz hat */
   compact?: boolean
+  /** Insgesamt investierte Fokuszeit in Minuten */
+  focusMinutes?: number
 }
 
-export default function TaskItem({ task, scheduledAt, goals = [], spaces = [], compact = false }: Props) {
+export default function TaskItem({ task, scheduledAt, goals = [], spaces = [], compact = false, focusMinutes = 0 }: Props) {
   const [editing, setEditing] = useState(false)
   const [editBlock, setEditBlock] = useState<TimeBlock | undefined>()
   const [checklistOpen, setChecklistOpen] = useState(false)
@@ -159,10 +161,15 @@ export default function TaskItem({ task, scheduledAt, goals = [], spaces = [], c
       />
       <button onClick={openEditor} className="min-w-0 flex-1 text-left" title="Bearbeiten">
         <span className={task.done ? 'text-slate-400 line-through dark:text-slate-500' : ''}>{task.title}</span>
+        {task.done && focusMinutes > 0 && (
+          <span className="ml-2 text-xs text-amber-600 dark:text-amber-400" title="Insgesamt investierte Fokuszeit">
+            ⏱️ {formatDuration(focusMinutes)}
+          </span>
+        )}
         {task.notes && !task.done && (
           <span className="mt-0.5 block truncate text-sm text-slate-500 dark:text-slate-400">{task.notes}</span>
         )}
-        {(due || task.priority !== 3 || scheduledAt || goal || space || task.repeat || progress || areaOf(task) === 'arbeit') && !task.done && (
+        {(due || task.priority !== 3 || scheduledAt || goal || space || task.repeat || progress || areaOf(task) === 'arbeit' || focusMinutes > 0) && !task.done && (
           <span className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-xs">
             {areaOf(task) === 'arbeit' && (
               <span className="flex items-center gap-1 rounded-full bg-sky-50 px-1.5 font-medium text-sky-700 ring-1 ring-sky-200 dark:bg-sky-500/10 dark:text-sky-300 dark:ring-sky-500/30">
@@ -176,6 +183,11 @@ export default function TaskItem({ task, scheduledAt, goals = [], spaces = [], c
               </span>
             )}
             {due && <span className={`font-medium ${dueColors[due.state]}`}>{due.label}</span>}
+            {focusMinutes > 0 && (
+              <span className="flex items-center gap-1 font-medium text-amber-600 dark:text-amber-400" title="Insgesamt investierte Fokuszeit">
+                ⏱️ {formatDuration(focusMinutes)}
+              </span>
+            )}
             {scheduledAt && (
               <span className="flex items-center gap-1 text-emerald-600 dark:text-emerald-400">
                 <Clock aria-hidden className="size-3.5" /> {scheduledAt} Uhr

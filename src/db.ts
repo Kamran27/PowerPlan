@@ -214,6 +214,8 @@ export interface TimeBlock {
   end: string
   title: string
   taskId?: string
+  /** Block wurde schon für eine Fokus-Sitzung genutzt → nächste Sitzung bekommt einen eigenen Block */
+  focused?: boolean
 }
 
 /** Abend-Tagesbilanz: Stimmung und Reflexion. Punkte werden immer live aus den Aufgaben berechnet. */

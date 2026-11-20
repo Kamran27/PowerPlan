@@ -1,10 +1,12 @@
 import { useEffect, useState } from 'react'
-import { completeFocus, FOCUS_MAX, FOCUS_PRESETS, formatClock, remainingMs, setDefaultMinutes, setFocusMinutes, stopFocus, useFocus } from '../lib/focus'
+import { Pause, Play } from 'lucide-react'
+import { completeFocus, FOCUS_MAX, FOCUS_PRESETS, formatClock, formatDuration, remainingMs, setDefaultMinutes, setFocusMinutes, stopFocus, togglePause, useFocus, workedMs } from '../lib/focus'
+import { useTaskFocusTotal } from '../lib/focusTotals'
 import { sessionPoints } from '../lib/points'
 import { useToast } from './Toast'
 import { PeekingCat } from './Cats'
 
-const btn = 'rounded-md px-2 py-1 text-sm font-semibold hover:bg-amber-600 disabled:opacity-40'
+const btn = 'rounded-md px-2 py-1 text-sm font-semibold hover:bg-black/10 disabled:opacity-40'
 
 /**
  * Leiste für den laufenden Fokus-Timer – auf jeder Seite sichtbar (über der Handy-Navigation).
@@ -20,15 +22,17 @@ export default function FocusBar() {
 
   useEffect(() => {
     if (!focus) return
+    setNow(Date.now()) // sofort aktuelle Zeit, sonst zeigt die Uhr kurz einen alten Wert
     const id = window.setInterval(() => setNow(Date.now()), 1000)
     return () => window.clearInterval(id)
   }, [focus])
 
   const left = focus ? remainingMs(focus, now) : 0
+  const totalBefore = useTaskFocusTotal(focus?.taskId)
 
   // Zeit abgelaufen (auch wenn die App zwischendurch zu war)
   useEffect(() => {
-    if (!focus || left > 0) return
+    if (!focus || left > 0 || focus.pausedAt) return
     completeFocus(focus).then(() => {
       toast(`⏱️ ${focus.minutes} Minuten Fokus geschafft – +${sessionPoints(focus.minutes)} Punkte! Kurz Pause machen.`)
       try {
@@ -44,7 +48,11 @@ export default function FocusBar() {
   if (!focus || left <= 0) return null
   const pct = Math.min(100, Math.max(0, 100 - (left / (focus.minutes * 60_000)) * 100))
   // Kürzer als die schon vergangene Zeit geht nicht
-  const minAllowed = Math.ceil((now - focus.startedAt) / 60_000) + 1
+  const worked = workedMs(focus, now)
+  const minAllowed = Math.ceil(worked / 60_000) + 1
+  const paused = !!focus.pausedAt
+  // Insgesamt in diese Aufgabe investiert: frühere Sitzungen + diese
+  const total = totalBefore + Math.floor(worked / 60_000)
 
   function change(minutes: number) {
     setFocusMinutes(minutes)
@@ -61,11 +69,19 @@ export default function FocusBar() {
     <div className="fixed inset-x-2 bottom-20 z-20 mx-auto max-w-md md:right-6 md:bottom-6 md:left-auto md:w-[26rem]">
     {/* Eine Katze schaut dir beim Konzentrieren zu */}
     <PeekingCat className="absolute -top-[19px] left-5 w-9 text-amber-500 dark:text-amber-400" />
-    <div role="status" aria-label="Fokus-Timer" className="overflow-hidden rounded-2xl bg-amber-500 text-white shadow-xl">
+    <div role="status" aria-label="Fokus-Timer" className={`overflow-hidden rounded-2xl text-white shadow-xl ${paused ? 'bg-slate-500' : 'bg-amber-500'}`}>
       <div className="flex items-center gap-2 px-4 py-2.5">
-        <span className="text-2xl font-bold tabular-nums">{formatClock(left)}</span>
+        <button
+          onClick={() => togglePause()}
+          aria-label={paused ? 'Fokus fortsetzen' : 'Fokus pausieren'}
+          title={paused ? 'Fortsetzen' : 'Pause'}
+          className="rounded-full bg-white/20 p-1.5 hover:bg-white/30"
+        >
+          {paused ? <Play className="size-4 fill-current" /> : <Pause className="size-4 fill-current" />}
+        </button>
+        <span className={`text-2xl font-bold tabular-nums ${paused ? 'animate-pulse' : ''}`}>{formatClock(left)}</span>
         <span className="min-w-0 flex-1 truncate text-sm">
-          <span className="block text-xs opacity-80">Fokus auf</span>
+          <span className="block text-xs opacity-80">{paused ? 'Pausiert' : 'Fokus auf'}{focus.taskId && total > 0 ? ` · gesamt ${formatDuration(total)}` : ''}</span>
           {focus.title}
         </span>
         <button onClick={() => change(focus.minutes - 5)} disabled={focus.minutes - 5 < minAllowed} aria-label="5 Minuten kürzer" className={btn}>
@@ -78,14 +94,14 @@ export default function FocusBar() {
           }}
           aria-expanded={editing}
           aria-label={`Dauer: ${focus.minutes} Minuten – ändern`}
-          className="rounded-md bg-amber-600 px-2 py-1 text-sm tabular-nums hover:bg-amber-700"
+          className="rounded-md bg-black/15 px-2 py-1 text-sm tabular-nums hover:bg-black/25"
         >
           {focus.minutes} Min.
         </button>
         <button onClick={() => change(focus.minutes + 5)} disabled={focus.minutes + 5 > FOCUS_MAX} aria-label="5 Minuten länger" className={btn}>
           +5
         </button>
-        <button onClick={() => stopFocus()} aria-label="Fokus abbrechen" className={btn}>
+        <button onClick={() => stopFocus()} aria-label="Fokus beenden" title="Beenden (ab 5 Min. wird die Zeit gespeichert)" className={btn}>
           ✕
         </button>
       </div>
@@ -132,7 +148,7 @@ export default function FocusBar() {
         </form>
       )}
 
-      <div className="h-1 bg-amber-600">
+      <div className="h-1 bg-black/15">
         <div className="h-full bg-white/80 transition-all duration-1000" style={{ width: `${pct}%` }} />
       </div>
     </div>

@@ -7,7 +7,7 @@ import { Link } from 'react-router-dom'
 import DayRings, { type Ring } from '../components/DayRings'
 import NextUp from '../components/NextUp'
 import MorningBrief from '../components/MorningBrief'
-import { defaultMinutes } from '../lib/focus'
+import { DAILY_FOCUS_GOAL, formatDuration } from '../lib/focus'
 import { isDueOn } from '../lib/habits'
 import DayReview from '../components/DayReview'
 import DayTimeline from '../components/DayTimeline'
@@ -76,13 +76,13 @@ export default function Heute() {
 
   // Tagesringe: Aufgaben, Routinen (heute fällige Gewohnheiten), Fokus-Minuten (Ziel = 2 Sitzungen)
   const focusMinutes = useLiveQuery(async () => (await db.focusSessions.where('date').equals(today).toArray()).reduce((n, s) => n + s.minutes, 0), [today]) ?? 0
-  const focusGoal = defaultMinutes() * 2
+  const focusGoal = DAILY_FOCUS_GOAL // mindestens 4 Stunden Fokus am Tag
   const habitsDue = (habits ?? []).filter((h) => isDueOn(h, today))
   const habitsDone = habitsDue.filter((h) => doneByHabit.get(h.id)?.has(today)).length
   const rings: Ring[] = [
     { label: 'Aufgaben', value: total ? doneTasks.length / total : 0, detail: `${doneTasks.length} / ${total}`, color: 'stroke-indigo-500', track: 'stroke-indigo-100 dark:stroke-indigo-500/20', dot: 'bg-indigo-500' },
     { label: 'Routinen', value: habitsDue.length ? habitsDone / habitsDue.length : 0, detail: `${habitsDone} / ${habitsDue.length}`, color: 'stroke-emerald-500', track: 'stroke-emerald-100 dark:stroke-emerald-500/20', dot: 'bg-emerald-500' },
-    { label: 'Fokus', value: focusMinutes / focusGoal, detail: `${focusMinutes} / ${focusGoal} Min.`, color: 'stroke-amber-500', track: 'stroke-amber-100 dark:stroke-amber-500/20', dot: 'bg-amber-500' },
+    { label: 'Fokus', value: focusMinutes / focusGoal, detail: `${formatDuration(focusMinutes)} / ${formatDuration(focusGoal)}`, color: 'stroke-amber-500', track: 'stroke-amber-100 dark:stroke-amber-500/20', dot: 'bg-amber-500' },
   ]
   const allRingsClosed = total > 0 && rings.every((r) => r.value >= 1)
   // Einmal am Tag feiern, wenn alle Ringe zu sind
