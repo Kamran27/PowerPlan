@@ -10,8 +10,8 @@ import { readStore, writeStore } from './storage'
  */
 
 /** Adresse des Push-Dienstes und öffentlicher Schlüssel – werden beim Einrichten (push-worker/) gesetzt. */
-export const PUSH_URL = ''
-export const VAPID_PUBLIC_KEY = ''
+export const PUSH_URL = 'https://powerplan-push.powerplan-push.workers.dev'
+export const VAPID_PUBLIC_KEY = 'BJsR_9w9dK_7CCu8lnEvAvBxo4FK_EB9Rb8BbnqxTnelI6DbGUgOcsI2JRKda4E9WD6ZyxXdXtWQYmtPNd1B5XU'
 
 const KEY = 'powerplan.push'
 
