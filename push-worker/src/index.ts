@@ -119,6 +119,7 @@ async function sendPush(env: Env, sub: { endpoint: string; p256dh: string; auth:
     },
     body,
   })
+  if (!res.ok) console.error('Push abgelehnt', res.status, (await res.text()).slice(0, 300))
   return res.status
 }
 
@@ -161,8 +162,8 @@ async function handleSync(env: Env, body: unknown): Promise<Response | { id: str
       auth,
       now,
     ),
-    // Noch nicht gesendete Erinnerungen dieses Geräts komplett ersetzen
-    env.DB.prepare('DELETE FROM reminders WHERE sub_id = ?1 AND sent = 0').bind(id),
+    // Noch nicht gesendete Erinnerungen dieses Geräts komplett ersetzen (Test-Push bleibt, sonst löscht ihn das Schließen der App)
+    env.DB.prepare("DELETE FROM reminders WHERE sub_id = ?1 AND sent = 0 AND tag NOT LIKE 'test-%'").bind(id),
     ...reminders.map((r) =>
       env.DB.prepare('INSERT INTO reminders (sub_id, at, tag, title, body) VALUES (?1, ?2, ?3, ?4, ?5)').bind(
         id,
@@ -223,6 +224,7 @@ export default {
       if (gone.has(r.sid)) continue
       try {
         const status = await sendPush(env, r, { title: r.title, body: r.body, tag: r.tag })
+        console.log('Push', new URL(r.endpoint).host, status)
         // 404/410 = Abo existiert nicht mehr (App gelöscht, Erlaubnis entzogen) → aufräumen
         if (status === 404 || status === 410) gone.add(r.sid)
       } catch (e) {
