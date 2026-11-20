@@ -15,6 +15,7 @@ import HabitsToday from '../components/HabitsToday'
 import { AreaFilterPills } from '../components/TaskFields'
 import { BlockLegend } from '../components/TimeBlockCard'
 import { matchesArea, useAreaFilter } from '../lib/area'
+import { moduleOn, useModules } from '../lib/modules'
 import PageHeader from '../components/PageHeader'
 import TaskInput from '../components/TaskInput'
 import TaskList from '../components/TaskList'
@@ -53,7 +54,7 @@ export default function Heute() {
   const reviewWeek = reviewWeekFor(today)
   const reviewDone = useLiveQuery(() => db.weekReviews.where('week').equals(reviewWeek).count(), [reviewWeek])
   const weekday = (now.getDay() + 6) % 7
-  const showReviewNudge = reviewDone === 0 && (weekday >= 4 || weekday === 0)
+  const showReviewNudge = moduleOn('rueckblick') && reviewDone === 0 && (weekday >= 4 || weekday === 0)
   const todaysMeals = useLiveQuery(() => db.meals.where('date').equals(today).toArray(), [today])
   const me = useMyEmail()
   const { habits, doneByHabit, loaded: habitsLoaded } = useHabits()
@@ -69,6 +70,7 @@ export default function Heute() {
   const openTasks = list.filter((t) => !t.done)
   const total = list.length
 
+  const on = useModules()
   const game = useGame()
   const pointsToday = game.byDay.get(today) ?? 0
   const streak = useMemo(() => streaks(myTasks, today), [myTasks, today])
@@ -79,11 +81,13 @@ export default function Heute() {
   const focusGoal = DAILY_FOCUS_GOAL // mindestens 4 Stunden Fokus am Tag
   const habitsDue = (habits ?? []).filter((h) => isDueOn(h, today))
   const habitsDone = habitsDue.filter((h) => doneByHabit.get(h.id)?.has(today)).length
-  const rings: Ring[] = [
-    { label: 'Aufgaben', value: total ? doneTasks.length / total : 0, detail: `${doneTasks.length} / ${total}`, color: 'stroke-indigo-500', track: 'stroke-indigo-100 dark:stroke-indigo-500/20', dot: 'bg-indigo-500' },
-    { label: 'Routinen', value: habitsDue.length ? habitsDone / habitsDue.length : 0, detail: `${habitsDone} / ${habitsDue.length}`, color: 'stroke-emerald-500', track: 'stroke-emerald-100 dark:stroke-emerald-500/20', dot: 'bg-emerald-500' },
-    { label: 'Fokus', value: focusMinutes / focusGoal, detail: `${formatDuration(focusMinutes)} / ${formatDuration(focusGoal)}`, color: 'stroke-amber-500', track: 'stroke-amber-100 dark:stroke-amber-500/20', dot: 'bg-amber-500' },
+  const allRings: (Ring & { show: boolean })[] = [
+    { label: 'Aufgaben', value: total ? doneTasks.length / total : 0, detail: `${doneTasks.length} / ${total}`, color: 'stroke-indigo-500', track: 'stroke-indigo-100 dark:stroke-indigo-500/20', dot: 'bg-indigo-500', show: true },
+    { label: 'Routinen', value: habitsDue.length ? habitsDone / habitsDue.length : 0, detail: `${habitsDone} / ${habitsDue.length}`, color: 'stroke-emerald-500', track: 'stroke-emerald-100 dark:stroke-emerald-500/20', dot: 'bg-emerald-500', show: on('gewohnheiten') },
+    { label: 'Fokus', value: focusMinutes / focusGoal, detail: `${formatDuration(focusMinutes)} / ${formatDuration(focusGoal)}`, color: 'stroke-amber-500', track: 'stroke-amber-100 dark:stroke-amber-500/20', dot: 'bg-amber-500', show: true },
   ]
+  // Ausgeschaltete Bereiche (Einstellungen → Was ich nutze) erscheinen nicht
+  const rings: Ring[] = allRings.filter((r) => r.show)
   const allRingsClosed = total > 0 && rings.every((r) => r.value >= 1)
   // Einmal am Tag feiern, wenn alle Ringe zu sind
   useEffect(() => {
@@ -104,7 +108,7 @@ export default function Heute() {
           </span>
           <span className="flex-1">
             <strong>Zeit für deinen Wochenrückblick</strong>
-            <span className="block text-slate-600 dark:text-slate-300">5 Minuten: zurückschauen, Fokus setzen, Woche planen (+{REVIEW_POINTS} Punkte)</span>
+            <span className="block text-slate-600 dark:text-slate-300">5 Minuten: zurückschauen, Fokus setzen, Woche planen{on('punkte') ? ` (+${REVIEW_POINTS} Punkte)` : ''}</span>
           </span>
           <span aria-hidden>→</span>
         </Link>
@@ -120,6 +124,8 @@ export default function Heute() {
         <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
           <DayRings rings={rings} small />
           <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-slate-600 dark:text-slate-300">
+            {on('punkte') && (
+            <>
             <span className="flex items-center gap-1" title="Punkte heute">
               <Trophy aria-hidden className="size-3.5 text-amber-500" /> <strong className="tabular-nums">{pointsToday}</strong> Pkt.
             </span>
@@ -135,6 +141,8 @@ export default function Heute() {
             <span className="flex items-center gap-1" title={`Noch ${game.level.needed - game.level.into} Punkte bis Level ${game.level.level + 1}`}>
               <Star aria-hidden className="size-3.5 text-indigo-500" /> Lvl <strong className="tabular-nums">{game.level.level}</strong>
             </span>
+            </>
+            )}
             {todaysMeals && todaysMeals.length > 0 && (
               <span className="flex items-center gap-1" title="Aus dem Essensplan eurer gemeinsamen Bereiche">
                 <UtensilsCrossed aria-hidden className="size-3.5 text-slate-500" /> {todaysMeals.map((m) => m.title).join(', ')}
@@ -144,12 +152,12 @@ export default function Heute() {
         </div>
         {(allRingsClosed || allDoneToday) && (
           <p className="rounded-xl bg-emerald-50 px-3 py-1.5 text-xs font-medium text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-300">
-            {allRingsClosed ? 'Alle Ringe geschlossen – starker Tag! 🐾' : 'Alles erledigt – der Tag zählt für deinen Streak!'}
+            {allRingsClosed ? 'Alle Ringe geschlossen – starker Tag! 🐾' : on('punkte') ? 'Alles erledigt – der Tag zählt für deinen Streak!' : 'Alles erledigt – stark! 🐾'}
           </p>
         )}
         <div className="grid gap-2 border-t border-slate-100 pt-3 dark:border-slate-800">
-          <WeekFocus week={weekStart(today)} inline />
-          {habitsLoaded && <HabitsToday habits={habits!} doneByHabit={doneByHabit} today={today} inline />}
+          {on('ziele') && <WeekFocus week={weekStart(today)} inline />}
+          {habitsLoaded && on('gewohnheiten') && <HabitsToday habits={habits!} doneByHabit={doneByHabit} today={today} inline />}
         </div>
       </section>
 

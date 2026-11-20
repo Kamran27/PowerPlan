@@ -4,6 +4,7 @@ import PageHeader from '../components/PageHeader'
 import ReminderSettingsCard from '../components/ReminderSettingsCard'
 import AccountCard from '../components/AccountCard'
 import ThemeCard from '../components/ThemeCard'
+import ModulesCard from '../components/ModulesCard'
 import { SleepingCat } from '../components/Cats'
 import FocusSettingsCard from '../components/FocusSettingsCard'
 import { useToast } from '../components/Toast'
@@ -72,6 +73,7 @@ export default function Einstellungen() {
     <div className="max-w-3xl">
       <PageHeader title="Einstellungen" cat="sitting" />
       <AccountCard />
+      <ModulesCard />
       <ThemeCard />
       <FocusSettingsCard />
       <section className="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-slate-200 dark:bg-slate-900 dark:ring-slate-800">

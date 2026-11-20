@@ -1,3 +1,5 @@
+import { useModules } from '../lib/modules'
+import { plusPoints } from '../lib/modules'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { useEffect, useMemo, useState } from 'react'
 import PageHeader from '../components/PageHeader'
@@ -19,6 +21,7 @@ const STEPS = ['Rückblick', 'Reflexion', 'Wochenfokus', 'Verteilen'] as const
  * kurze Reflexion, Wochenfokus für die neue Woche, Aufgaben ohne Datum auf die Tage verteilen.
  */
 export default function Wochenrueckblick() {
+  const on = useModules()
   const today = todayISO()
   const week = reviewWeekFor(today)
   const weekEnd = addDays(week, 6)
@@ -119,7 +122,7 @@ export default function Wochenrueckblick() {
       toast('Wochenrückblick aktualisiert ✓')
     } else {
       await db.weekReviews.add(data as WeekReview)
-      toast(`🗓️ Wochenrückblick geschafft – +${REVIEW_POINTS} Punkte! Gute neue Woche.`)
+      toast(`🗓️ Wochenrückblick geschafft${plusPoints(REVIEW_POINTS, ' – ')}! Gute neue Woche.`)
     }
   }
 
@@ -156,7 +159,7 @@ export default function Wochenrueckblick() {
           <h2 className="font-semibold">Deine Woche in Zahlen</h2>
           <dl className="mt-3 grid grid-cols-2 gap-3 text-center sm:grid-cols-3">
             <Stat label="Aufgaben erledigt" value={stats.done} />
-            <Stat label="Punkte" value={stats.points} />
+            {on('punkte') && <Stat label="Punkte" value={stats.points} />}
             <Stat label="Tage mit Plan erfüllt" value={`${stats.fulfilled}/7`} />
             <Stat label="Gewohnheiten" value={stats.habitPct === null ? '–' : `${stats.habitPct} %`} />
             <Stat label="Wochenfokus" value={`${stats.focusDone}/3`} />

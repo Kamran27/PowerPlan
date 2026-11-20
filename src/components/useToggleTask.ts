@@ -1,3 +1,4 @@
+import { plusPoints } from '../lib/modules'
 import { db, type Task } from '../db'
 import { formatDayShort } from '../lib/date'
 import { taskPoints } from '../lib/points'
@@ -19,6 +20,6 @@ export function useToggleTask() {
     if (task.done) return
     const me = db.cloud.currentUser.value?.email
     const who = nextAssignee ? ` · ${nextAssignee === me ? 'dann bist du dran' : `dann ist ${shortName(nextAssignee)} dran`}` : ''
-    toast(nextDue ? `+${taskPoints(task)} Punkte 🎉 · 🔁 nächstes Mal ${formatDayShort(nextDue)}${who}` : `+${taskPoints(task)} Punkte 🎉`)
+    toast(`Erledigt 🎉${plusPoints(taskPoints(task))}${nextDue ? ` · 🔁 nächstes Mal ${formatDayShort(nextDue)}${who}` : ''}`)
   }
 }

@@ -1,3 +1,4 @@
+import { plusPoints } from '../lib/modules'
 import { useState, type FormEvent } from 'react'
 import type { Goal, Task } from '../db'
 import { deleteGoal, GOAL_POINTS, goalProgress, toggleGoalAchieved, updateGoal } from '../lib/goals'
@@ -17,7 +18,7 @@ export default function GoalCard({ goal, tasks }: { goal: Goal; tasks: Task[] })
   const open = linked.filter((t) => !t.done)
 
   async function toggleAchieved() {
-    if (await toggleGoalAchieved(goal)) toast(`+${GOAL_POINTS} Punkte – Ziel erreicht! 🏆`)
+    if (await toggleGoalAchieved(goal)) toast(`Ziel erreicht! 🏆${plusPoints(GOAL_POINTS)}`)
   }
 
   async function remove() {

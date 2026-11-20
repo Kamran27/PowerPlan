@@ -1,3 +1,4 @@
+import { plusPoints } from '../lib/modules'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
@@ -25,7 +26,7 @@ export default function WeekFocus({ week, compact, inline }: Props) {
   const goalById = new Map(goals.map((g) => [g.id, g]))
 
   async function toggle(item: FocusItem) {
-    if (await toggleFocus(item)) toast(`+${FOCUS_POINTS} Punkte – Fokus erledigt! 🎯`)
+    if (await toggleFocus(item)) toast(`Fokus erledigt! 🎯${plusPoints(FOCUS_POINTS)}`)
   }
 
   if (inline) {

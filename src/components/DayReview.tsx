@@ -1,3 +1,4 @@
+import { useModules } from '../lib/modules'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { useEffect, useState } from 'react'
 import { db, type DayLog, type Task } from '../db'
@@ -26,6 +27,7 @@ export default function DayReview({ date, points, doneTasks, openTasks }: Props)
   const [reflection, setReflection] = useState('')
   const [savedFlash, setSavedFlash] = useState(false)
   const toast = useToast()
+  const on = useModules()
 
   // Gespeicherte Bilanz in die Felder übernehmen, sobald sie geladen ist.
   useEffect(() => {
@@ -64,7 +66,7 @@ export default function DayReview({ date, points, doneTasks, openTasks }: Props)
         <h2 className="font-semibold">🌙 Tagesbilanz</h2>
         <dl className="flex gap-1.5 text-xs">
           {[
-            ['Punkte', points],
+            ...(on('punkte') ? [['Punkte', points]] : []),
             ['Erledigt', doneTasks.length],
             ['Offen', openTasks.length],
           ].map(([label, value]) => (

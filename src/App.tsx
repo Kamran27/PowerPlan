@@ -19,6 +19,7 @@ import LoginDialog from './components/LoginDialog'
 import FocusBar from './components/FocusBar'
 import PushSync from './components/PushSync'
 import { IS_TEST_DB } from './db'
+import { useModules, type ModuleId } from './lib/modules'
 import QuickAddFab from './components/QuickAddFab'
 import KudosNotifier from './components/KudosNotifier'
 import CatWalker from './components/CatWalker'
@@ -31,17 +32,17 @@ import LegacyImportBanner from './components/LegacyImportBanner'
  * label = Seitenleiste (Desktop), short = Leiste unten (Handy).
  * more = auf dem Handy im „Mehr“-Menü statt in der Leiste (zu wenig Platz für alle).
  */
-const navItems = [
+const navItems: { to: string; label: string; short: string; icon: typeof Sun; more?: boolean; module?: ModuleId }[] = [
   { to: '/heute', label: 'Heute', short: 'Heute', icon: Sun },
   { to: '/woche', label: 'Woche', short: 'Woche', icon: CalendarDays },
   { to: '/aufgaben', label: 'Aufgaben', short: 'Aufgaben', icon: ListChecks },
-  { to: '/gemeinsam', label: 'Gemeinsam', short: 'Gemeinsam', icon: Users },
-  { to: '/gewohnheiten', label: 'Gewohnheiten', short: 'Routinen', icon: Repeat },
-  { to: '/ziele', label: 'Ziele', short: 'Ziele', icon: Target },
-  { to: '/mein-budget', label: 'Mein Budget', short: 'Budget', icon: Wallet, more: true },
+  { to: '/gemeinsam', label: 'Gemeinsam', short: 'Gemeinsam', icon: Users, module: 'gemeinsam' },
+  { to: '/gewohnheiten', label: 'Gewohnheiten', short: 'Routinen', icon: Repeat, more: true, module: 'gewohnheiten' },
+  { to: '/ziele', label: 'Ziele', short: 'Ziele', icon: Target, more: true, module: 'ziele' },
+  { to: '/mein-budget', label: 'Mein Budget', short: 'Budget', icon: Wallet, more: true, module: 'budget' },
+  { to: '/wochenrueckblick', label: 'Wochenrückblick', short: 'Rückblick', icon: CalendarCheck, more: true, module: 'rueckblick' },
+  { to: '/statistik', label: 'Statistik', short: 'Statistik', icon: ChartColumn, more: true, module: 'statistik' },
   { to: '/suche', label: 'Suche', short: 'Suche', icon: Search, more: true },
-  { to: '/wochenrueckblick', label: 'Wochenrückblick', short: 'Rückblick', icon: CalendarCheck, more: true },
-  { to: '/statistik', label: 'Statistik', short: 'Statistik', icon: ChartColumn, more: true },
   { to: '/einstellungen', label: 'Einstellungen', short: 'Einstellungen', icon: Settings, more: true },
 ]
 
@@ -61,7 +62,10 @@ export default function App() {
   const logoTaps = useRef<number[]>([])
   // Der Wochenkalender bekommt mehr Breite als die übrigen Seiten
   const wide = pathname.startsWith('/woche')
-  const moreActive = navItems.some((i) => i.more && pathname.startsWith(i.to))
+  const on = useModules()
+  // Ausgeschaltete Bereiche (Einstellungen → Was ich nutze) nicht anzeigen
+  const items = navItems.filter((i) => !i.module || on(i.module))
+  const moreActive = items.some((i) => i.more && pathname.startsWith(i.to))
 
   // „Mehr“-Menü beim Seitenwechsel schließen
   useEffect(() => setMoreOpen(false), [pathname])
@@ -116,7 +120,7 @@ export default function App() {
             <CloudStatus />
           </div>
           <ul className="flex gap-1 p-2 md:flex-col md:px-3">
-            {navItems.map((item) => (
+            {items.map((item) => (
               <li key={item.to} className={item.more ? 'max-md:hidden' : 'max-md:flex-1'}>
                 <NavLink to={item.to} className={navClass} aria-label={item.label}>
                   <item.icon aria-hidden className="size-5 shrink-0" strokeWidth={1.75} />
@@ -140,7 +144,7 @@ export default function App() {
               </button>
               {moreOpen && (
                 <div className="absolute right-0 bottom-full mb-2 w-48 rounded-xl bg-white p-1 shadow-xl ring-1 ring-slate-200 dark:bg-slate-900 dark:ring-slate-700">
-                  {navItems
+                  {items
                     .filter((i) => i.more)
                     .map((i) => (
                       <NavLink

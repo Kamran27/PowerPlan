@@ -1,3 +1,4 @@
+import { plusPoints } from '../lib/modules'
 import { useEffect, useState } from 'react'
 import { Pause, Play } from 'lucide-react'
 import { completeFocus, FOCUS_MAX, FOCUS_PRESETS, formatClock, formatDuration, remainingMs, setDefaultMinutes, setFocusMinutes, stopFocus, togglePause, useFocus, workedMs } from '../lib/focus'
@@ -34,7 +35,7 @@ export default function FocusBar() {
   useEffect(() => {
     if (!focus || left > 0 || focus.pausedAt) return
     completeFocus(focus).then(() => {
-      toast(`⏱️ ${focus.minutes} Minuten Fokus geschafft – +${sessionPoints(focus.minutes)} Punkte! Kurz Pause machen.`)
+      toast(`⏱️ ${focus.minutes} Minuten Fokus geschafft${plusPoints(sessionPoints(focus.minutes), ' – ')}! Kurz Pause machen.`)
       try {
         if ('Notification' in window && Notification.permission === 'granted') {
           new Notification('⏱️ Fokus geschafft', { body: `${focus.title} – Zeit für eine kurze Pause.`, tag: 'powerplan-focus' })

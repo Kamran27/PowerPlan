@@ -1,3 +1,4 @@
+import { plusPoints } from '../lib/modules'
 import { HABIT_POINTS, toggleHabit } from '../lib/habits'
 import { haptic } from '../lib/useIsMobile'
 import { useToast } from './Toast'
@@ -9,7 +10,7 @@ export function useToggleHabit() {
     const done = await toggleHabit(habitId, date)
     if (done) {
       haptic(15)
-      toast(`+${HABIT_POINTS} Punkte 🎉`)
+      toast(`Erledigt 🎉${plusPoints(HABIT_POINTS)}`)
     }
   }
 }

@@ -1,10 +1,12 @@
+import { useModules } from '../lib/modules'
 import { Link } from 'react-router-dom'
 import { useGame } from '../lib/gameContext'
 
 /** Kompakte Level-Anzeige mit Mini-Balken; Klick führt zur Statistik. */
 export default function LevelBadge({ className = '' }: { className?: string }) {
   const { level, loaded } = useGame()
-  if (!loaded) return null
+  const on = useModules()
+  if (!loaded || !on('punkte')) return null
   return (
     <Link
       to="/statistik"
