@@ -178,6 +178,29 @@ async function handleSync(env: Env, body: unknown): Promise<Response | { id: str
   return { id, count: reminders.length }
 }
 
+/* ---------------- Kalender (nur lesen) ---------------- */
+
+/** Nur öffentliche/geheime Kalender-Links von Apple iCloud und Google – kein offener Proxy */
+const ICS_HOSTS = [/^p\d+-caldav\.icloud\.com$/, /^calendar\.google\.com$/]
+const ICS_MAX_BYTES = 5 * 1024 * 1024
+
+async function handleIcs(raw: string | undefined, headers: Record<string, string>): Promise<Response> {
+  let target: URL
+  try {
+    target = new URL(String(raw ?? '').trim().replace(/^webcals?:\/\//i, 'https://'))
+  } catch {
+    return new Response('Ungültiger Link', { status: 400, headers })
+  }
+  if (target.protocol !== 'https:' || !ICS_HOSTS.some((h) => h.test(target.hostname))) {
+    return new Response('Nur Kalender-Links von iCloud oder Google', { status: 400, headers })
+  }
+  const res = await fetch(target.toString(), { headers: { Accept: 'text/calendar' }, cf: { cacheTtl: 300 } } as RequestInit)
+  if (!res.ok) return new Response(`Kalender nicht erreichbar (${res.status})`, { status: 502, headers })
+  const text = await res.text()
+  if (text.length > ICS_MAX_BYTES || !text.includes('BEGIN:VCALENDAR')) return new Response('Kein Kalender', { status: 502, headers })
+  return new Response(text, { status: 200, headers: { 'Content-Type': 'text/calendar; charset=utf-8', ...headers } })
+}
+
 export default {
   async fetch(req: Request, env: Env): Promise<Response> {
     const headers = cors(env, req)
@@ -196,6 +219,9 @@ export default {
     if (url.pathname === '/sync') {
       const r = await handleSync(env, body)
       return r instanceof Response ? new Response(r.body, { status: r.status, headers }) : json(r, 200, headers)
+    }
+    if (url.pathname === '/ics') {
+      return handleIcs((body as { url?: string }).url, headers)
     }
     if (url.pathname === '/unsubscribe') {
       const endpoint = (body as { endpoint?: string }).endpoint

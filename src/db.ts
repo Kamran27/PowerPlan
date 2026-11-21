@@ -218,6 +218,18 @@ export interface TimeBlock {
   focused?: boolean
 }
 
+/** Externer Kalender (Apple iCloud / Google), nur lesen. Privat: nur für die Person, die ihn eingetragen hat. */
+export interface Calendar {
+  id: string
+  name: string
+  /** Öffentlicher bzw. geheimer iCal-Link (webcal:// oder https://) */
+  url: string
+  /** Farbname aus CAL_COLORS */
+  color: string
+  /** vorübergehend ausgeblendet */
+  hidden?: boolean
+}
+
 /** Abend-Tagesbilanz: Stimmung und Reflexion. Punkte werden immer live aus den Aufgaben berechnet. */
 export interface DayLog {
   id: string
@@ -290,6 +302,7 @@ export const db = new Dexie(IS_TEST_DB ? 'powerplan-cloud-test' : 'powerplan-clo
   weekReviews: EntityTable<WeekReview, 'id'>
   expenses: EntityTable<Expense, 'id'>
   budgetItems: EntityTable<BudgetItem, 'id'>
+  calendars: EntityTable<Calendar, 'id'>
 }
 
 // „@id“ = Dexie Cloud vergibt eine weltweit eindeutige Text-ID. Danach: Felder, nach denen gesucht wird.
@@ -338,6 +351,11 @@ db.version(6).stores({
 // Version 7: Budget – Fixkosten und Sparziele (pro Bereich)
 db.version(7).stores({
   budgetItems: '@id, spaceId',
+})
+
+// Version 8: externe Kalender (iCloud, Google) – nur der Link, Termine werden live gelesen
+db.version(8).stores({
+  calendars: '@id',
 })
 
 db.cloud.configure({

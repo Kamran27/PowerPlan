@@ -5,6 +5,8 @@ import { DAY_START, GRID_HEIGHT, GRID_HOURS, PX_PER_MIN } from '../lib/time'
 import { useNowMinutes } from '../lib/useNow'
 import BlockEditor, { type BlockDraft } from './BlockEditor'
 import DayColumn from './DayColumn'
+import { AllDayChips } from './CalEventCard'
+import { useCalendarEvents, useCalendarMap } from '../lib/calendars'
 
 /** Zeitleiste eines Tages (Heute-Seite): Stundenraster + eine Tagesspalte. */
 export default function DayTimeline({ date, blocks, tasks }: { date: string; blocks: TimeBlock[]; tasks: Map<string, Task> }) {
@@ -12,6 +14,8 @@ export default function DayTimeline({ date, blocks, tasks }: { date: string; blo
   const scrollRef = useRef<HTMLDivElement>(null)
   const now = useNowMinutes()
   const isToday = date === todayISO()
+  const events = useCalendarEvents(date, date).get(date) ?? []
+  const calendars = useCalendarMap()
 
   // Beim Öffnen zur aktuellen Uhrzeit scrollen (eine Stunde Vorlauf).
   useEffect(() => {
@@ -24,6 +28,9 @@ export default function DayTimeline({ date, blocks, tasks }: { date: string; blo
 
   return (
     <>
+      <div className="mb-2">
+        <AllDayChips events={events} calendars={calendars} />
+      </div>
       <div
         ref={scrollRef}
         className="max-h-[70vh] overflow-y-auto rounded-2xl bg-white shadow-sm ring-1 ring-slate-200 dark:bg-slate-900 dark:ring-slate-800"
@@ -49,6 +56,8 @@ export default function DayTimeline({ date, blocks, tasks }: { date: string; blo
             tasks={tasks}
             now={isToday ? now : undefined}
             onOpen={setDraft}
+            events={events}
+            calendars={calendars}
             className="absolute inset-y-0 right-0 left-12"
           />
         </div>

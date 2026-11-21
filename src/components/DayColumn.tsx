@@ -6,6 +6,9 @@ import { addBlock, layoutBlocks, TASK_DRAG_TYPE } from '../lib/timeblocks'
 import { registerDropTarget } from '../lib/touchDrag'
 import type { BlockDraft } from './BlockEditor'
 import TimeBlockCard from './TimeBlockCard'
+import CalEventCard from './CalEventCard'
+import type { CalEvent } from '../lib/calendar'
+import type { Calendar } from '../db'
 
 interface Props {
   date: string
@@ -16,13 +19,16 @@ interface Props {
   /** Öffnet den Block-Dialog (neu oder bearbeiten) */
   onOpen: (draft: BlockDraft) => void
   className?: string
+  /** Termine aus iCloud/Google an diesem Tag (nur lesen) */
+  events?: CalEvent[]
+  calendars?: Map<string, Calendar>
 }
 
 /**
  * Eine Tagesspalte im Zeitraster – gemeinsam genutzt von Tagesplan (Heute) und Wochenkalender:
  * Klick = neuer Block, Aufgabe hineinziehen = einplanen, Blöcke verschieben/verlängern, „Jetzt“-Linie.
  */
-export default function DayColumn({ date, blocks, tasks, now, onOpen, className = '' }: Props) {
+export default function DayColumn({ date, blocks, tasks, now, onOpen, className = '', events = [], calendars }: Props) {
   const [dropAt, setDropAt] = useState<number | null>(null)
   const areaRef = useRef<HTMLDivElement>(null)
   const showNow = now !== undefined && now >= DAY_START && now < DAY_END
@@ -94,7 +100,16 @@ export default function DayColumn({ date, blocks, tasks, now, onOpen, className 
       className={`cursor-cell ${className}`}
       style={{ height: GRID_HEIGHT }}
     >
-      {layoutBlocks(blocks).map(({ block, lane, lanes }) => (
+      {layoutBlocks([
+        ...blocks,
+        // Kalendertermine teilen sich die Spalten mit den eigenen Blöcken
+        ...events.filter((e) => !e.allDay).map((e) => ({ id: `cal:${e.id}`, date, start: e.start!, end: e.end!, title: e.title })),
+      ]).map(({ block, lane, lanes }) => {
+        if (block.id.startsWith('cal:')) {
+          const ev = events.find((e) => `cal:${e.id}` === block.id)!
+          return <CalEventCard key={block.id} event={ev} calendar={calendars?.get(ev.calId)} lane={lane} lanes={lanes} />
+        }
+        return (
         <TimeBlockCard
           key={block.id}
           block={block}
@@ -103,7 +118,8 @@ export default function DayColumn({ date, blocks, tasks, now, onOpen, className 
           lanes={lanes}
           onOpen={() => onOpen(block)}
         />
-      ))}
+        )
+      })}
 
       {dropAt !== null && (
         <div

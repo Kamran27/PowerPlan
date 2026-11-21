@@ -2,6 +2,8 @@ import { useLiveQuery } from 'dexie-react-hooks'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import BlockEditor, { type BlockDraft } from '../components/BlockEditor'
 import DayColumn from '../components/DayColumn'
+import { AllDayChips } from '../components/CalEventCard'
+import { useCalendarEvents, useCalendarMap } from '../lib/calendars'
 import PageHeader from '../components/PageHeader'
 import { BlockLegend } from '../components/TimeBlockCard'
 import TaskList from '../components/TaskList'
@@ -42,6 +44,9 @@ export default function Woche() {
 
   const blocks = useLiveQuery(() => db.timeBlocks.where('date').between(monday, sunday, true, true).toArray(), [monday, sunday])
   const allTasks = useLiveQuery(() => db.tasks.toArray(), [])
+  // Termine aus iCloud/Google (nur lesen)
+  const calEvents = useCalendarEvents(monday, sunday)
+  const calendars = useCalendarMap()
   const me = useMyEmail()
   const tasksById = useMemo(() => new Map((allTasks ?? []).map((t) => [t.id, t])), [allTasks])
 
@@ -154,6 +159,12 @@ export default function Woche() {
               <div className="pt-1.5 pr-1 text-right text-[10px] leading-tight text-slate-400">Fällig</div>
               {days.map((d) => (
                 <ul key={d} className="grid min-h-8 content-start gap-0.5 border-l border-slate-100 p-1 dark:border-slate-800">
+                  {/* Ganztägige Kalendertermine */}
+                  {calEvents.get(d)?.some((e) => e.allDay) && (
+                    <li className="min-w-0 overflow-hidden">
+                      <AllDayChips events={calEvents.get(d)!} calendars={calendars} />
+                    </li>
+                  )}
                   {(dueByDay.get(d) ?? []).map((t) => (
                     <li
                       key={t.id}
@@ -210,6 +221,8 @@ export default function Woche() {
                     tasks={tasksById}
                     now={d === today ? now : undefined}
                     onOpen={setDraft}
+                    events={calEvents.get(d)}
+                    calendars={calendars}
                     className={`relative border-l border-slate-100 dark:border-slate-800 ${d === today ? 'bg-indigo-50/40 dark:bg-indigo-500/5' : ''}`}
                   />
                 ))}
