@@ -134,10 +134,17 @@ export default function CalendarsCard() {
       {help === 'apple' && (
         <ol className="mt-2 list-decimal space-y-1 rounded-xl bg-slate-50 p-3 pl-7 text-xs text-slate-600 dark:bg-slate-800/60 dark:text-slate-300">
           <li>
-            <strong>Mac:</strong> Kalender-App → Rechtsklick auf den Kalender (links) → <em>Kalender teilen …</em> → <em>Öffentlicher Kalender</em> anhaken → Link kopieren.
+            Nur <strong>iCloud-Kalender</strong> lassen sich teilen. Steht dein Kalender links unter <em>Auf meinem Mac</em> (oder Exchange/Outlook), geht es nicht – dann zuerst einen
+            iCloud-Kalender verwenden.
           </li>
           <li>
-            <strong>iPhone:</strong> Kalender-App → <em>Kalender</em> (unten) → ⓘ neben dem Kalender → <em>Öffentlicher Kalender</em> einschalten → <em>Link teilen</em> → Kopieren.
+            <strong>iPhone (am einfachsten):</strong> Kalender-App → <em>Kalender</em> (unten) → ⓘ neben dem Kalender → ganz unten <em>Öffentlicher Kalender</em> einschalten → <em>Link teilen …</em> → Kopieren.
+          </li>
+          <li>
+            <strong>Browser:</strong> icloud.com/calendar → links beim Kalender auf das Teilen-Symbol (Person mit Welle) → <em>Öffentlicher Kalender</em> anhaken → Link kopieren.
+          </li>
+          <li>
+            <strong>Mac:</strong> Kalender-App → mit der Maus über den Kalender links fahren → Teilen-Symbol rechts daneben anklicken → <em>Öffentlicher Kalender</em> anhaken → Link kopieren.
           </li>
           <li>Der Link beginnt mit <code>webcal://p…-caldav.icloud.com/published/…</code>. Hier einfügen.</li>
           <li>Hinweis: Wer den Link kennt, kann die Termine lesen – nicht weitergeben.</li>
